@@ -61,13 +61,13 @@ struct compute_parameters {
     pthreadpool_task_2d_with_thread_t task_2d_with_thread;
     pthreadpool_task_2d_tile_1d_t task_2d_tile_1d;
     pthreadpool_task_2d_tile_2d_t task_2d_tile_2d;
-    pthreadpool_task_2d_tile_1d_dynamic_t task_2d_tile_1d_dynamic;
-    pthreadpool_task_2d_tile_2d_dynamic_t task_2d_tile_2d_dynamic;
+    // pthreadpool_task_2d_tile_1d_dynamic_t task_2d_tile_1d_dynamic;
+    // pthreadpool_task_2d_tile_2d_dynamic_t task_2d_tile_2d_dynamic;
     pthreadpool_task_3d_t task_3d;
     pthreadpool_task_3d_tile_1d_t task_3d_tile_1d;
     pthreadpool_task_3d_tile_1d_with_thread_t task_3d_tile_1d_with_thread;
     pthreadpool_task_3d_tile_2d_t task_3d_tile_2d;
-    pthreadpool_task_3d_tile_2d_dynamic_t task_3d_tile_2d_dynamic;
+    // pthreadpool_task_3d_tile_2d_dynamic_t task_3d_tile_2d_dynamic;
     pthreadpool_task_4d_t task_4d;
     pthreadpool_task_4d_tile_2d_t task_4d_tile_2d;
     pthreadpool_task_5d_t task_5d;
