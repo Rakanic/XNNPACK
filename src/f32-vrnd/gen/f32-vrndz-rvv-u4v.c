@@ -22,18 +22,18 @@ void xnn_f32_vrndz_ukernel__rvv_u4v(
     float* output,
     const struct xnn_f32_default_params params[restrict XNN_MIN_ELEMENTS(1)])
 {
-  assert(batch != 0);
-  assert(batch % sizeof(float) == 0);
-  assert(input != NULL);
-  assert(output != NULL);
+  // assert(batch != 0);
+  // assert(batch % sizeof(float) == 0);
+  // assert(input != NULL);
+  // assert(output != NULL);
 
-  batch >>= XNN_LOG2_SIZEOF_FLOAT;
-  do {
-    const size_t n = __riscv_vsetvl_e32m4(batch);
-    vfloat32m4_t x_f32v = __riscv_vle32_v_f32m4(input, n); input += n;
-    vint32m4_t x_rnd_i32v = __riscv_vfcvt_x_f_v_i32m4_rm(x_f32v, __RISCV_FRM_RTZ, n);
-    vfloat32m4_t out_f32v = __riscv_vfcvt_f_x_v_f32m4(x_rnd_i32v, n);
-    __riscv_vse32_v_f32m4(output, out_f32v, n); output += n;
-    batch -= n;
-  } while (batch != 0);
+  // batch >>= XNN_LOG2_SIZEOF_FLOAT;
+  // do {
+  //   const size_t n = __riscv_vsetvl_e32m4(batch);
+  //   vfloat32m4_t x_f32v = __riscv_vle32_v_f32m4(input, n); input += n;
+  //   vint32m4_t x_rnd_i32v = __riscv_vfcvt_x_f_v_i32m4_rm(x_f32v, __RISCV_FRM_RTZ, n);
+  //   vfloat32m4_t out_f32v = __riscv_vfcvt_f_x_v_f32m4(x_rnd_i32v, n);
+  //   __riscv_vse32_v_f32m4(output, out_f32v, n); output += n;
+  //   batch -= n;
+  // } while (batch != 0);
 }

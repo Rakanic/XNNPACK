@@ -201,7 +201,8 @@ static void init_hardware_config(void) {
   #if XNN_ARCH_RISCV
     const long hwcap = getauxval(AT_HWCAP);
     xnn_log_debug("getauxval(AT_HWCAP) = %08lX", hwcap);
-    hardware_config.use_riscv_vector = (hwcap & COMPAT_HWCAP_ISA_V) != 0;
+    // hardware_config.use_riscv_vector = (hwcap & COMPAT_HWCAP_ISA_V) != 0;
+    hardware_config.use_riscv_vector = 1;
 
     /* There is no HWCAP for fp16 so disable by default */
     hardware_config.use_riscv_vector_fp16_arith = false;

@@ -12,14 +12,10 @@ IF(NOT VLEN MATCHES "^(32|64|128|256|512|1024|2048|4096|8192|16384|32768|65536)$
 ENDIF()
 
 IF(NOT RISCV_TOOLCHAIN_ROOT)
-  SET(CMAKE_C_COMPILER "riscv64-linux-gnu-gcc")
-  SET(CMAKE_ASM_COMPILER "riscv64-linux-gnu-gcc")
-  SET(CMAKE_CXX_COMPILER "riscv64-linux-gnu-g++")
+  SET(CMAKE_C_COMPILER "riscv64-unknown-linux-gnu-gcc")
+  SET(CMAKE_ASM_COMPILER "riscv64-unknown-linux-gnu-gcc")
+  SET(CMAKE_CXX_COMPILER "riscv64-unknown-linux-gnu-g++")
 
-  SET(CMAKE_FIND_ROOT_PATH "/usr/riscv64-linux-gnu")
-  SET(CMAKE_INCLUDE_PATH "/usr/include/riscv64-linux-gnu")
-  SET(CMAKE_LIBRARY_PATH "/usr/lib/riscv64-linux-gnu")
-  SET(CMAKE_PROGRAM_PATH "/usr/bin/riscv64-linux-gnu")
 ELSE()
   MESSAGE(STATUS "RISCV_TOOLCHAIN_ROOT=${RISCV_TOOLCHAIN_ROOT} is defined during compilation.")
   SET(CMAKE_C_COMPILER "${RISCV_TOOLCHAIN_ROOT}/bin/riscv64-unknown-linux-gnu-clang")

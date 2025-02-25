@@ -28,14 +28,14 @@
   #define XNN_INIT_ONCE(name) \
     InitOnceExecuteOnce(&name##_guard, &name##_windows_wrapper, NULL, NULL) /* no semicolon */
 
-#elif XNN_HAS_PTHREADS
+// #elif XNN_HAS_PTHREADS
 
-  #define XNN_INIT_ONCE_GUARD(name) \
-    static void init_##name##_config(void); \
-    static pthread_once_t name##_guard = PTHREAD_ONCE_INIT /* no semicolon */
+//   #define XNN_INIT_ONCE_GUARD(name) \
+//     static void init_##name##_config(void); \
+//     static pthread_once_t name##_guard = PTHREAD_ONCE_INIT /* no semicolon */
 
-  #define XNN_INIT_ONCE(name) \
-    pthread_once(&name##_guard, &init_##name##_config) /* no semicolon */
+//   #define XNN_INIT_ONCE(name) \
+//     pthread_once(&name##_guard, &init_##name##_config) /* no semicolon */
 
 #else
 
