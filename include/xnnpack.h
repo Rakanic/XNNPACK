@@ -98,7 +98,7 @@ extern "C" {
 /// Retain reduced dimensions with length 1.
 #define XNN_FLAG_KEEP_DIMS 0x00000040
 
-// Next unused flag value: 0x00000100.
+// Next unused flag value: 0x00000200.
 
 /// The number of entries in an array of xnn_quantization_params that XNNPACK may read beyond array bounds.
 /// The caller must allocate at least this many extra xnn_quantization_params before passing the array to XNNPACK.
@@ -291,6 +291,14 @@ enum xnn_datatype {
   xnn_datatype_pfp32 = 13,
   /// BFloat16, i.e. the upper 16 bits of a float32.
   xnn_datatype_bf16 = 14,
+  /// Dynamically quantized 8-bit unsigned integer with per-batch quantization
+  /// parameters.
+  xnn_datatype_qduint8 = 15,
+  /// IEEE754 half-precision packed floating-point.
+  xnn_datatype_pfp16 = 16,
+  /// Packed quantized 8-bit unsigned integer with shared per-Value quantization
+  /// parameters.
+  xnn_datatype_pqint8 = 17,
 };
 
 /// Define a tensor-type Value and add it to a Subgraph.
@@ -2100,6 +2108,33 @@ enum xnn_status xnn_define_static_slice_v2(  //
     uint32_t output_id,                      //
     uint32_t flags);
 
+/// Define a Static Slice Node add it to a Subgraph.
+///
+/// @param subgraph - a Subgraph object that will own the created Node.
+/// @param num_dims - number of shape dimensions in the input and output tensor.
+/// @param begins - offsets to the start in each dimension of the input tensor. This array must have @a num_dims elements.
+///                 Can be negative meaning that the offset is relative to the end of the dimension.
+/// @param ends - offsets to the end in each dimension of the input tensor. This array must have @a num_dims elements.
+///               Can be negative meaning that the offset is relative to the end of the dimension.
+///               An end value of 0 means "infer the largest open interval".
+/// @param strides - The stride to use for each dimension of the slice. Can be NULL, in which case
+///                  a value of 1 is assumed for all dimensions.
+///                  TODO: at present, only stride values of 1 are supported (other values will return errors);
+///                  this will be supported more fully in the future.
+/// @param input_id - Value ID for the input tensor. The input tensor must be defined in the @a subgraph.
+/// @param output_id - Value ID for the output tensor. The output tensor must be defined in the @a subgraph, and its
+///                    dimensions must match @a sizes.
+/// @param flags - binary features of the Static Slice Node. No supported flags are currently defined.
+enum xnn_status xnn_define_static_slice_v3(  //
+    xnn_subgraph_t subgraph,                 //
+    size_t num_dims,                         //
+    const int64_t* begins,                   //
+    const int64_t* ends,                     //
+    const int64_t* strides,                  //
+    uint32_t input_id,                       //
+    uint32_t output_id,                      //
+    uint32_t flags);
+
 /// Define a Static Transpose Node and add it to a Subgraph.
 ///
 /// The Static Transpose Node applies a generalized transpose to the input tensor using the permuation in perm.
@@ -2635,6 +2670,10 @@ enum xnn_status xnn_create_batch_matrix_multiply_nc_f16(
   uint32_t flags,
   xnn_operator_t* batch_matrix_multiply_op);
 
+enum xnn_status xnn_create_batch_matrix_multiply_nc_f16_const_weights(
+    size_t batch_size_b, size_t k, size_t n, const void* data_b, uint32_t flags,
+    xnn_operator_t* batch_matrix_multiply_op);
+
 enum xnn_status xnn_reshape_batch_matrix_multiply_nc_f16(
     xnn_operator_t batch_matrix_multiply_op, size_t num_batch_dims,
     const size_t* batch_dims_a, const size_t* batch_dims_b, size_t m, size_t k,
@@ -2676,42 +2715,6 @@ enum xnn_status xnn_setup_batch_matrix_multiply_nc_qd8_f32_qc8w(
     xnn_operator_t batch_matrix_multiply_op, const int8_t* input_a,
     const struct xnn_quantization_params* quantization_params,
     float* output);
-
-enum xnn_status xnn_create_channel_shuffle_nc_x8(
-  size_t groups,
-  size_t group_channels,
-  size_t input_stride,
-  size_t output_stride,
-  uint32_t flags,
-  xnn_operator_t* channel_shuffle_op_out);
-
-enum xnn_status xnn_reshape_channel_shuffle_nc_x8(
-  xnn_operator_t channel_shuffle_op,
-  size_t batch_size,
-  pthreadpool_t threadpool);
-
-enum xnn_status xnn_setup_channel_shuffle_nc_x8(
-  xnn_operator_t channel_shuffle_op,
-  const void* input,
-  void* output);
-
-enum xnn_status xnn_create_channel_shuffle_nc_x32(
-  size_t groups,
-  size_t group_channels,
-  size_t input_stride,
-  size_t output_stride,
-  uint32_t flags,
-  xnn_operator_t* channel_shuffle_op_out);
-
-enum xnn_status xnn_reshape_channel_shuffle_nc_x32(
-  xnn_operator_t channel_shuffle_op,
-  size_t batch_size,
-  pthreadpool_t threadpool);
-
-enum xnn_status xnn_setup_channel_shuffle_nc_x32(
-  xnn_operator_t channel_shuffle_op,
-  const void* input,
-  void* output);
 
 enum xnn_status xnn_create_constant_pad_nd_x8(
   const void* padding_value,
@@ -3795,6 +3798,20 @@ enum xnn_status xnn_create_fully_connected_nc_f32_f16(
   xnn_weights_cache_t weights_cache,
   xnn_operator_t* fully_connected_op_out);
 
+enum xnn_status xnn_create_fully_connected_nc_bf16_f32(
+  size_t input_channels,
+  size_t output_channels,
+  size_t input_stride,
+  size_t output_stride,
+  const void* kernel,
+  const float* bias,
+  float output_min,
+  float output_max,
+  uint32_t flags,
+  xnn_code_cache_t code_cache,
+  xnn_weights_cache_t weights_cache,
+  xnn_operator_t* fully_connected_op_out);
+
 enum xnn_status xnn_create_fully_connected_nc_f32(
   size_t input_channels,
   size_t output_channels,
@@ -3814,6 +3831,11 @@ enum xnn_status xnn_reshape_fully_connected_nc_f32_f16(
   size_t batch_size,
   pthreadpool_t threadpool);
 
+enum xnn_status xnn_reshape_fully_connected_nc_bf16_f32(
+  xnn_operator_t fully_connected_op,
+  size_t batch_size,
+  pthreadpool_t threadpool);
+
 enum xnn_status xnn_reshape_fully_connected_nc_f32(
   xnn_operator_t fully_connected_op,
   size_t batch_size,
@@ -3822,6 +3844,11 @@ enum xnn_status xnn_reshape_fully_connected_nc_f32(
 enum xnn_status xnn_setup_fully_connected_nc_f32_f16(
   xnn_operator_t fully_connected_op,
   const float* input,
+  float* output);
+
+enum xnn_status xnn_setup_fully_connected_nc_bf16_f32(
+  xnn_operator_t fully_connected_op,
+  const void* input,
   float* output);
 
 enum xnn_status xnn_setup_fully_connected_nc_f32(
@@ -4287,13 +4314,14 @@ enum xnn_status xnn_setup_reduce_nd(
     const void* input,
     void* output);
 
-enum xnn_status xnn_create_resize_bilinear2d_nchw_f32(
+enum xnn_status xnn_create_resize_bilinear2d_nchw(
+  enum xnn_datatype datatype,
   size_t output_height,
   size_t output_width,
   uint32_t flags,
   xnn_operator_t* resize_op_out);
 
-enum xnn_status xnn_reshape_resize_bilinear2d_nchw_f32(
+enum xnn_status xnn_reshape_resize_bilinear2d_nchw(
   xnn_operator_t resize_op,
   size_t batch_size,
   size_t input_height,
@@ -4303,39 +4331,19 @@ enum xnn_status xnn_reshape_resize_bilinear2d_nchw_f32(
   size_t output_pixel_stride,
   pthreadpool_t threadpool);
 
-enum xnn_status xnn_setup_resize_bilinear2d_nchw_f32(
-  xnn_operator_t resize_op,
-  const float* input,
-  float* output);
-
-enum xnn_status xnn_create_resize_bilinear2d_nchw_f16(
-  size_t output_height,
-  size_t output_width,
-  uint32_t flags,
-  xnn_operator_t* resize_op_out);
-
-enum xnn_status xnn_reshape_resize_bilinear2d_nchw_f16(
-  xnn_operator_t resize_op,
-  size_t batch_size,
-  size_t input_height,
-  size_t input_width,
-  size_t channels,
-  size_t input_pixel_stride,
-  size_t output_pixel_stride,
-  pthreadpool_t threadpool);
-
-enum xnn_status xnn_setup_resize_bilinear2d_nchw_f16(
+enum xnn_status xnn_setup_resize_bilinear2d_nchw(
   xnn_operator_t resize_op,
   const void* input,
   void* output);
 
-enum xnn_status xnn_create_resize_bilinear2d_nhwc_f16(
+enum xnn_status xnn_create_resize_bilinear2d_nhwc(
+  enum xnn_datatype datatype,
   size_t output_height,
   size_t output_width,
   uint32_t flags,
   xnn_operator_t* resize_op_out);
 
-enum xnn_status xnn_reshape_resize_bilinear2d_nhwc_f16(
+enum xnn_status xnn_reshape_resize_bilinear2d_nhwc(
   xnn_operator_t resize_op,
   size_t batch_size,
   size_t input_height,
@@ -4347,83 +4355,11 @@ enum xnn_status xnn_reshape_resize_bilinear2d_nhwc_f16(
   size_t* workspace_alignment,
   pthreadpool_t threadpool);
 
-enum xnn_status xnn_setup_resize_bilinear2d_nhwc_f16(
+enum xnn_status xnn_setup_resize_bilinear2d_nhwc(
   xnn_operator_t resize_op,
   void* workspace,
   const void* input,
   void* output);
-
-enum xnn_status xnn_create_resize_bilinear2d_nhwc_f32(
-  size_t output_height,
-  size_t output_width,
-  uint32_t flags,
-  xnn_operator_t* resize_op_out);
-
-enum xnn_status xnn_reshape_resize_bilinear2d_nhwc_f32(
-  xnn_operator_t resize_op,
-  size_t batch_size,
-  size_t input_height,
-  size_t input_width,
-  size_t channels,
-  size_t input_pixel_stride,
-  size_t output_pixel_stride,
-  size_t* workspace_size,
-  size_t* workspace_alignment,
-  pthreadpool_t threadpool);
-
-enum xnn_status xnn_setup_resize_bilinear2d_nhwc_f32(
-  xnn_operator_t resize_op,
-  void* workspace,
-  const float* input,
-  float* output);
-
-enum xnn_status xnn_create_resize_bilinear2d_nhwc_s8(
-  size_t output_height,
-  size_t output_width,
-  uint32_t flags,
-  xnn_operator_t* resize_op_out);
-
-enum xnn_status xnn_reshape_resize_bilinear2d_nhwc_s8(
-  xnn_operator_t resize_op,
-  size_t batch_size,
-  size_t input_height,
-  size_t input_width,
-  size_t channels,
-  size_t input_pixel_stride,
-  size_t output_pixel_stride,
-  size_t* workspace_size,
-  size_t* workspace,
-  pthreadpool_t threadpool);
-
-enum xnn_status xnn_setup_resize_bilinear2d_nhwc_s8(
-  xnn_operator_t resize_op,
-  void* workspace,
-  const int8_t* input,
-  int8_t* output);
-
-enum xnn_status xnn_create_resize_bilinear2d_nhwc_u8(
-  size_t output_height,
-  size_t output_width,
-  uint32_t flags,
-  xnn_operator_t* resize_op_out);
-
-enum xnn_status xnn_reshape_resize_bilinear2d_nhwc_u8(
-  xnn_operator_t resize_op,
-  size_t batch_size,
-  size_t input_height,
-  size_t input_width,
-  size_t channels,
-  size_t input_pixel_stride,
-  size_t output_pixel_stride,
-  size_t* workspace_size,
-  size_t* workspace_alignment,
-  pthreadpool_t threadpool);
-
-enum xnn_status xnn_setup_resize_bilinear2d_nhwc_u8(
-  xnn_operator_t resize_op,
-  void* workspace,
-  const uint8_t* input,
-  uint8_t* output);
 
 enum xnn_status xnn_create_rope_nthc_f16(
   uint32_t flags,

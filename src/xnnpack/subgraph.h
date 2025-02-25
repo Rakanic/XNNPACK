@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -12,6 +13,7 @@
 #include "xnnpack/allocation-type.h"
 #include "xnnpack/cache.h"
 #include "xnnpack/common.h"
+#include "xnnpack/config-types.h"
 #include "xnnpack/math.h"
 #include "xnnpack/node-type.h"
 #include "pthreadpool.h"
@@ -30,13 +32,25 @@
 #define XNN_INVALID_NODE_ID UINT32_MAX
 
 #define XNN_MAX_OPERATOR_OBJECTS 5
-#define XNN_MAX_SUBGRAPH_INPUT_OR_OUTPUTS 16
 
 /// Disable fusion of nodes in subgraph. Fusion is enabled by default, set this flag to turn it off.
 #define XNN_FLAG_NO_OPERATOR_FUSION 0x80000000
 
 /// Enable Slinky (if available).
 #define XNN_FLAG_SLINKY_ENABLED 0x40000000
+
+/// If Slinky is enabled, disable any scheduling.
+#define XNN_FLAG_SLINKY_SCHEDULE_DISABLED 0x20000000
+
+/// If Slinky is enabled, assume shapes are concrete (and rebuild pipeline in reshape).
+/// This makes reshaping more expensive, but may reduce overhead in some cases.
+#define XNN_FLAG_SLINKY_CONCRETE_BOUNDS 0x10000000
+
+/// If Slinky is enabled, disable asserts in Slinky pipelines.
+#define XNN_FLAG_SLINKY_NO_CHECKS 0x08000000
+
+/// Assume tensors of rank > 2 will be squashed to 2 dimensions.
+#define XNN_FLAG_SQUASH_GROUPS 0x00000100
 
 #ifdef __cplusplus
 extern "C" {
@@ -123,11 +137,13 @@ struct xnn_value {
   uint32_t flags;
   /// Static initialization data. Must be null for non-static values.
   void* data;
-  /// Index of the Subgraph node that produced the value, or XNN_INVALID_NODE_ID is the Value is an external input.
+  /// Index of the Subgraph node that produced the value, or XNN_INVALID_NODE_ID
+  /// is the Value is an external input.
   uint32_t producer;
   /// Index of the first Node that consume the value, or XNN_INVALID_NODE_ID if the Value has no consumers within the
   /// graph (e.g. Value is an external output).
   uint32_t first_consumer;
+  bool all_consumers_types_same;
   /// Number of Nodes that consume the value.
   /// If multiple inputs in a Node refer to this Value as input, the Node is counted as consumer multiple times.
   /// If the Value is an external output, it counts as having an extra consumer.
@@ -146,6 +162,8 @@ struct xnn_value {
   /// Used during analysis in xnn_subgraph_rewrite_for_fp16.
   /// Temporary buffer to convert static data to FP16.
   void* fp16_temp_data;
+  // Pointer to a `xnn_gemm_config` if this value is packed for a specific GEMM.
+  const struct xnn_gemm_config *gemm_config;
   // Pointer to original fp32 data if this value was converted from fp32 to fp16 (only for static values). This is used
   // for nodes like Convolution, where the filter is expected to be kept as fp32, but could have been converted to fp16
   // if another node (like Subtraction) also consumed the weights.
@@ -301,8 +319,8 @@ struct xnn_node {
     } static_resize;
     struct {
       size_t num_dims;
-      int64_t offsets[XNN_MAX_TENSOR_DIMS];
-      size_t sizes[XNN_MAX_TENSOR_DIMS];
+      int64_t begins[XNN_MAX_TENSOR_DIMS];
+      int64_t ends[XNN_MAX_TENSOR_DIMS];
     } slice;
     struct {
       uint32_t block_size;
@@ -335,11 +353,15 @@ struct xnn_node {
   uint32_t layout_flags;
   uint32_t cluster_leader;
   // Number of filter parameters in all 1x1 Convolutions of the sparse cluster.
-  // This value is properly initialized only in sparse inference analysis of 1x1 Convolutions.
+  // This value is properly initialized only in sparse inference analysis of 1x1
+  // Convolutions.
   size_t num_params;
-  // Number of zero filter parameters in all 1x1 Convolutions of the sparse cluster.
-  // This value is properly initialized only in sparse inference analysis of 1x1 Convolutions.
+  // Number of zero filter parameters in all 1x1 Convolutions of the sparse
+  // cluster. This value is properly initialized only in sparse inference
+  // analysis of 1x1 Convolutions.
   size_t num_zeroes;
+  // Pointer to the runtime operator corresponding to this node.
+  struct xnn_operator *op;
   // Factory function to create an operator object from the node.
   xnn_create_operator_fn create;
   // Function to reshape an operator using opdata.
@@ -395,8 +417,8 @@ struct xnn_operator_data {
     };
     // Used for static slice.
     struct {
-      int64_t offsets[XNN_MAX_TENSOR_DIMS];
-      size_t sizes[XNN_MAX_TENSOR_DIMS];
+      int64_t begins[XNN_MAX_TENSOR_DIMS];
+      int64_t ends[XNN_MAX_TENSOR_DIMS];
     };
   };
   uint32_t adjustment_height;
@@ -429,6 +451,7 @@ struct xnn_subgraph {
 /// Runtime is a combination of an execution plan for subgraph Nodes and a memory manager for subgraph Values.
 struct xnn_runtime {
   uint32_t num_external_values;
+  uint32_t flags;
 
   /// List of operators in the execution plan, in execution order.
   struct xnn_operator_data* opdata;
@@ -455,17 +478,12 @@ struct xnn_runtime {
   #ifdef XNN_SLINKY_AVAILABLE
   // Fields used by Slinky -- unused unless XNN_FLAG_SLINKY_ENABLED is set
   slinky_pipeline_t slinky_pipeline;
-  size_t slinky_num_inputs;
-  size_t slinky_num_outputs;
-  struct xnn_value* slinky_input_values[XNN_MAX_SUBGRAPH_INPUT_OR_OUTPUTS];
-  struct xnn_value* slinky_output_values[XNN_MAX_SUBGRAPH_INPUT_OR_OUTPUTS];
   #endif  // XNN_SLINKY_AVAILABLE
 };
 
 enum xnn_status xnn_insert_clamp_node(xnn_subgraph_t subgraph, float output_min, float output_max, struct xnn_node *node);
 
 enum xnn_status xnn_insert_pack_lh_node(xnn_subgraph_t subgraph,
-                                        const struct xnn_value* input,
                                         uint32_t input_id, uint32_t* new_id);
 
 struct xnn_value* xnn_subgraph_new_internal_value(xnn_subgraph_t subgraph);
@@ -478,9 +496,6 @@ enum xnn_status xnn_subgraph_add_nodes(xnn_subgraph_t subgraph, size_t num_nodes
 size_t xnn_tensor_get_size(const struct xnn_value* value);
 
 size_t xnn_tensor_get_size_by_id(xnn_subgraph_t subgraph, uint32_t value_id);
-
-// Checks if a tensor shape is completely known.
-bool xnn_tensor_shape_is_static(const struct xnn_value* value);
 
 XNN_INLINE static size_t xnn_get_rounded_size(size_t size)
 {
@@ -521,7 +536,8 @@ size_t xnn_shape_multiply_trailing_dims(
 size_t xnn_tensor_get_dynamic_quant_param_size(const struct xnn_value* value);
 
 XNN_INLINE static size_t xnn_tensor_get_rounded_dynamic_quant_param_size(const struct xnn_value *value) {
-  assert (value->datatype == xnn_datatype_qdint8);
+  assert(value->datatype == xnn_datatype_qdint8 ||
+         value->datatype == xnn_datatype_qduint8);
 
   // We may read out of bounds for qparams.
   return xnn_get_rounded_size(value->quantization.dynamic_params_size

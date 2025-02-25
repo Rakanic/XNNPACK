@@ -64,6 +64,7 @@ MICROKERNEL_DEFS = [
     "src/f16-f32-vcvt/f16-f32-vcvt.h",
     "src/f16-maxpool/f16-maxpool-minmax.h",
     "src/f16-pavgpool/f16-pavgpool-minmax.h",
+    "src/f16-qu8-vcvt/f16-qu8-vcvt.h",
     "src/f16-qs8-vcvt/f16-qs8-vcvt.h",
     "src/f16-vabs/f16-vabs.h",
     "src/f16-vbinary/f16-vadd.h",
@@ -88,8 +89,10 @@ MICROKERNEL_DEFS = [
     "src/f16-vbinary/f16-vsubc.h",
     "src/f16-vclamp/f16-vclamp.h",
     "src/f16-velu/f16-velu.h",
+    "src/f16-vgelu/f16-vgelu.h",
     "src/f16-vhswish/f16-vhswish.h",
     "src/f16-vlrelu/f16-vlrelu.h",
+    "src/f16-vmulcaddc/f16-vmulcaddc.h",
     "src/f16-vneg/f16-vneg.h",
     "src/f16-vrnd/f16-vrndd.h",
     "src/f16-vrnd/f16-vrndne.h",
@@ -110,6 +113,7 @@ MICROKERNEL_DEFS = [
     "src/f32-pavgpool/f32-pavgpool-minmax.h",
     "src/f32-qs8-vcvt/f32-qs8-vcvt.h",
     "src/f32-qu8-vcvt/f32-qu8-vcvt.h",
+    "src/f32-raddextexp/f32-raddextexp.h",
     "src/f32-vabs/f32-vabs.h",
     "src/f32-vbinary/f32-vadd.h",
     "src/f32-vbinary/f32-vaddc.h",
@@ -141,6 +145,7 @@ MICROKERNEL_DEFS = [
     "src/f32-vhswish/f32-vhswish.h",
     "src/f32-vlog/f32-vlog.h",
     "src/f32-vlrelu/f32-vlrelu.h",
+    "src/f32-vmulcaddc/f32-vmulcaddc.h",
     "src/f32-vneg/f32-vneg.h",
     "src/f32-vrelu/f32-vrelu.h",
     "src/f32-vrnd/f32-vrndd.h",
@@ -148,6 +153,8 @@ MICROKERNEL_DEFS = [
     "src/f32-vrnd/f32-vrndu.h",
     "src/f32-vrnd/f32-vrndz.h",
     "src/f32-vrsqrt/f32-vrsqrt.h",
+    "src/f32-vscaleexpminusmax/f32-vscaleexpminusmax.h",
+    "src/f32-vscaleextexp/f32-vscaleextexp.h",
     "src/f32-vsigmoid/f32-vsigmoid.h",
     "src/f32-vsqr/f32-vsqr.h",
     "src/f32-vsqrt/f32-vsqrt.h",
@@ -159,6 +166,7 @@ MICROKERNEL_DEFS = [
     "src/qs8-f16-vcvt/qs8-f16-vcvt.h",
     "src/qs8-f32-vcvt/qs8-f32-vcvt.h",
     "src/qs8-packw/qs8-packw.h",
+    "src/qs8-qc4w-packw/qs8-qc4w-packw.h",
     "src/qs8-qc8w-dwconv/qs8-qc8w-dwconv-minmax-multipass-fp32.h",
     "src/qs8-qc8w-dwconv/qs8-qc8w-dwconv-minmax-unipass-fp32.h",
     "src/qs8-vadd/qs8-vadd-minmax.h",
@@ -185,15 +193,16 @@ MICROKERNEL_DEFS = [
     "src/qu8-vmulc/qu8-vmulc-minmax-rndnu.h",
     "src/s8-maxpool/s8-maxpool-minmax.h",
     "src/s8-vclamp/s8-vclamp.h",
-    "src/s32-f32-vcvt/s32-f32-vcvt.h",
     "src/u8-maxpool/u8-maxpool-minmax.h",
     "src/u8-vclamp/u8-vclamp.h",
     "src/xx-fill/xx-fill.h",
     "src/xx-pad/xx-pad.h",
     "src/xx-transposev/xx-transposev.h",
+    "src/x8-pack-lh/x8-pack-lh.h",
     "src/x8-packq/x8-packq.h",
     "src/x8-packw/x8-packw.h",
     "src/x8-transposec/x8-transposec.h",
+    "src/x16-pack-lh/x16-pack-lh.h",
     "src/x16-packw/x16-packw.h",
     "src/x16-transposec/x16-transposec.h",
     "src/x24-transposec/x24-transposec.h",
@@ -251,11 +260,13 @@ MICROKERNEL_DEPS = [
     ":microkernels_h",
     ":microparams",
     ":prefetch",
+    ":sanitizers",
     ":tables",
     ":unaligned",
 ]
 
 SIMD_HEADERS = [
+    "src/xnnpack/simd/f16-generic-functions.h",
     "src/xnnpack/simd/f32-avx-base.h",
     "src/xnnpack/simd/f32-generic-functions.h",
 ] + [
@@ -323,13 +334,6 @@ xnnpack_cc_library(
     deps = [
         "@pthreadpool",
     ],
-)
-
-xnnpack_cc_library(
-    name = "experiments_config",
-    srcs = ["src/configs/experiments-config.c"],
-    hdrs = ["include/experiments-config.h"],
-    visibility = xnnpack_visibility(),
 )
 
 xnnpack_cc_library(
@@ -404,8 +408,8 @@ xnnpack_cc_library(
     deps = [
         ":common",
         ":config_hdrs",
-        ":experiments_config",
         ":hardware_config",
+        ":indirection",
         ":init_once",
         ":logging",
         ":math",
@@ -528,6 +532,7 @@ xnnpack_cc_library(
     name = "internal",
     hdrs = ["src/xnnpack/internal.h"],
     deps = [
+        ":subgraph_h",
         ":xnnpack_h",
     ],
 )
@@ -557,7 +562,12 @@ xnnpack_cc_library(
 xnnpack_cxx_library(
     name = "buffer",
     hdrs = ["src/xnnpack/buffer.h"],
-    deps = [":datatype"],
+    deps = [
+        ":common",
+        ":datatype",
+        ":math",
+        ":xnnpack_h",
+    ],
 )
 
 xnnpack_cc_library(
@@ -788,6 +798,7 @@ xnnpack_cxx_library(
         ":logging",
         ":math",
         ":microparams",
+        ":microparams_init",
         ":params",
         ":unaligned",
         ":xnnpack_h",
@@ -891,6 +902,8 @@ xnnpack_cc_library(
     hdrs = ["src/xnnpack/microkernel-utils.h"],
     deps = [
         ":common",
+        ":hardware_config",
+        ":logging",
         ":math",
     ],
 )
@@ -984,7 +997,9 @@ xnnpack_cc_library(
         ":common",
         ":datatype",
         ":fp16",
+        ":hardware_config",
         ":indirection",
+        ":internal",
         ":logging",
         ":math",
         ":microkernel_configs",
@@ -1003,6 +1018,14 @@ xnnpack_cc_library(
         ":xnnpack_h",
         "@pthreadpool",
     ],
+)
+
+xnnpack_cc_library(
+    name = "sanitizers",
+    srcs = [
+        "src/sanitizers.c",
+    ],
+    compatible_with = [],
 )
 
 xnnpack_cc_library(
@@ -1096,21 +1119,23 @@ xnnpack_cc_library(
     visibility = xnnpack_visibility(),
     deps = [
         ":allocator",
-        ":build_identifier",
-        ":common",
-        ":config_hdrs",
+        ":build_identifier",  # build_cleaner: keep
+        ":common",  # build_cleaner: keep
+        ":config_hdrs",  # build_cleaner: keep
         ":hardware_config",
         ":init_once",
         ":logging",
-        ":math",
-        ":microkernels_h",
-        ":microparams",
-        ":microparams_init",
-        ":operators",
+        ":math",  # build_cleaner: keep
+        ":microkernels_h",  # build_cleaner: keep
+        ":microparams",  # build_cleaner: keep
+        ":microparams_init",  # build_cleaner: keep
+        ":operators",  # build_cleaner: keep
         ":params",
-        ":subgraph",
+        ":subgraph",  # build_cleaner: keep
         "@pthreadpool",
-    ],
+    ] + xnnpack_if_kleidiai_enabled([
+        "@KleidiAI//:common",
+    ]),
 )
 
 # Specialized XNNPACK version for TensorFlow Lite. Excludes operators currently
@@ -1335,6 +1360,18 @@ config_setting(
     define_values = {"xnn_enable_avx512fp16": "false"},
 )
 
+# Enables usage of Intel AVX512-BF16 (bf16 arithmetic) kernels.
+config_setting(
+    name = "xnn_enable_avx512bf16_explicit_true",
+    define_values = {"xnn_enable_avx512bf16": "true"},
+)
+
+# Disables usage of Intel AVX512-BF16 (bf16 arithmetic) kernels.
+config_setting(
+    name = "xnn_enable_avx512bf16_explicit_false",
+    define_values = {"xnn_enable_avx512bf16": "false"},
+)
+
 # Enables usage of Intel AVX-VNNI (integer dot product) kernels.
 config_setting(
     name = "xnn_enable_avxvnni_explicit_true",
@@ -1527,6 +1564,18 @@ config_setting(
     define_values = {"xnn_enable_dwconv_multipass": "false"},
 )
 
+# Enables usage of WASM SIMD AVX-256 revectorization kernels.
+config_setting(
+    name = "xnn_enable_wasm_revectorize_explicit_true",
+    define_values = {"xnn_enable_wasm_revectorize": "true"},
+)
+
+# Disables usage of WASM SIMD AVX-256 revectorization kernels.
+config_setting(
+    name = "xnn_enable_wasm_revectorize_explicit_false",
+    define_values = {"xnn_enable_wasm_revectorize": "false"},
+)
+
 # Force logging to stderr/stdout
 config_setting(
     name = "xnn_log_to_stdio_explicit_true",
@@ -1638,6 +1687,22 @@ selects.config_setting_group(
 )
 
 selects.config_setting_group(
+    name = "avx512bf16_enabled_by_default",
+    match_any = [
+        "//build_config:x86_64",
+    ],
+)
+
+alias(
+    name = "avx512bf16_enabled",
+    actual = select({
+        ":xnn_enable_avx512bf16_explicit_true": ":xnn_enable_avx512bf16_explicit_true",
+        ":xnn_enable_avx512bf16_explicit_false": ":xnn_enable_avx512bf16_explicit_true",
+        "//conditions:default": ":avx512bf16_enabled_by_default",
+    }),
+)
+
+selects.config_setting_group(
     name = "arm_bf16_enabled_by_default",
     match_any = [
         "//build_config:aarch64",
@@ -1694,13 +1759,27 @@ alias(
     }),
 )
 
+selects.config_setting_group(
+    name = "arm_sme_enabled_by_default",
+    match_any = [
+        "//build_config:aarch64",
+    ],
+)
+
 alias(
     name = "arm_sme_enabled",
     actual = select({
         ":xnn_enable_arm_sme_explicit_true": ":xnn_enable_arm_sme_explicit_true",
         ":xnn_enable_arm_sme_explicit_false": ":xnn_enable_arm_sme_explicit_true",
-        "//conditions:default": ":xnn_enable_arm_sme_explicit_true",
+        "//conditions:default": ":arm_sme_enabled_by_default",
     }),
+)
+
+selects.config_setting_group(
+    name = "arm_sme2_enabled_by_default",
+    match_any = [
+        "//build_config:aarch64",
+    ],
 )
 
 alias(
@@ -1708,6 +1787,7 @@ alias(
     actual = select({
         ":xnn_enable_arm_sme2_explicit_true": ":xnn_enable_arm_sme2_explicit_true",
         ":xnn_enable_arm_sme2_explicit_false": ":xnn_enable_arm_sme2_explicit_true",
+        # Only enable this by default once we're sure it doesn't break anything.
         "//conditions:default": ":xnn_enable_arm_sme2_explicit_true",
     }),
 )
@@ -1821,7 +1901,6 @@ alias(
     actual = select({
         ":xnn_enable_avx512fp16_explicit_true": ":xnn_enable_avx512fp16_explicit_true",
         ":xnn_enable_avx512fp16_explicit_false": ":xnn_enable_avx512fp16_explicit_true",
-        "//build_config:windows_lexan": ":xnn_enable_avx512fp16_explicit_true",
         "//conditions:default": ":avx512fp16_enabled_by_default",
     }),
 )
@@ -2070,6 +2149,23 @@ alias(
         ":xnn_enable_dwconv_multipass_explicit_true": ":xnn_enable_dwconv_multipass_explicit_true",
         ":xnn_enable_dwconv_multipass_explicit_false": ":xnn_enable_dwconv_multipass_explicit_true",
         "//conditions:default": ":dwconv_multipass_enabled_by_default",
+    }),
+)
+
+selects.config_setting_group(
+    name = "wasm_revectorize_enabled_by_default",
+    match_any = [
+        "//build_config:emscripten_wasmsimd",
+        "//build_config:emscripten_wasmrelaxedsimd",
+    ],
+)
+
+alias(
+    name = "wasm_revectorize_enabled",
+    actual = select({
+        ":xnn_enable_wasm_revectorize_explicit_true": ":xnn_enable_wasm_revectorize_explicit_true",
+        ":xnn_enable_wasm_revectorize_explicit_false": ":xnn_enable_wasm_revectorize_explicit_true",
+        "//conditions:default": ":wasm_revectorize_enabled_by_default",
     }),
 )
 

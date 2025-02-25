@@ -8,6 +8,7 @@
 
 #include <assert.h>
 #include <limits.h>
+#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -15,19 +16,22 @@
 #include "xnnpack.h"
 #include "xnnpack/common.h"
 #include "xnnpack/compute.h"
-#include "xnnpack/config-types.h"
 #include "xnnpack/indirection.h"
 #include "xnnpack/log.h"
 #include "xnnpack/math.h"
 #include "xnnpack/microfnptr.h"
 #include "xnnpack/microkernel-type.h"
 #include "xnnpack/microparams.h"
-#include "xnnpack/microparams-init.h"
 #include "xnnpack/operator-type.h"
 #include "xnnpack/operator.h"
 #include "xnnpack/packq.h"
 #include "xnnpack/quantization.h"
 #include "pthreadpool.h"
+
+#if XNN_MAX_UARCH_TYPES > 1
+#include "xnnpack/config-types.h"
+#include "xnnpack/microparams-init.h"
+#endif  // XNN_MAX_UARCH_TYPES > 1
 
 void xnn_compute_transposec_2d(
     const struct transpose_context* context,
@@ -297,44 +301,90 @@ void xnn_compute_transposev_6d(
       tile_n);
 }
 
+void xnn_compute_batched_packw_gemm_gio(
+    const struct packw_gemm_gio_context context[restrict XNN_MIN_ELEMENTS(1)],
+    size_t batch_index, size_t n_block_start, size_t n_block_size) {
+  while (n_block_size > 0) {
+    const size_t n_step = min(n_block_size, context->nr);
+
+    const void* kernel = (const void*)((uintptr_t)context->kernel +
+                                       n_block_start * context->n_stride +
+                                       batch_index * context->gk_stride);
+    const void* bias = context->bias;
+    if (bias != NULL) {
+      bias = (const void*)((uintptr_t)bias + n_block_start * context->b_stride +
+                           batch_index * context->gb_stride);
+    }
+    void* packed_weights = (void*)((uintptr_t)context->packed_weights +
+                                   n_block_start * context->w_stride +
+                                   batch_index * context->gc_stride);
+
+    if (context->pack_weights_and_biases) {
+      context->pack_weights_and_biases(
+          /*flags=*/XNN_FLAG_TRANSPOSE_WEIGHTS, context->gemm_config,
+          context->kc, n_step,
+          /*groups=*/1, /*block_size=*/0, /*k_stride=*/0,
+          /*accumulator_init=*/bias, kernel,
+          /*init_extra_data0_fn=*/NULL,
+          /*extra_data0=*/NULL, /*extra_data0_element_size=*/0,
+          /*init_extra_data1_fn=*/NULL, /*extra_data1=*/NULL,
+          /*extra_data1_element_size=*/0, packed_weights, /*params=*/NULL);
+    } else {
+      context->packw_gemm_gio(
+          /*groups=*/1, n_step, context->kc, context->nr, context->kr,
+          context->sr, context->k_stride_elements, kernel, bias, /*scale=*/NULL,
+          packed_weights, /*extra_bytes=*/0, /*params=*/NULL);
+    }
+    n_block_size -= n_step;
+    n_block_start += n_step;
+  }
+}
+
 void xnn_compute_packw_gemm_gio(
     const struct packw_gemm_gio_context context[restrict XNN_MIN_ELEMENTS(1)],
     size_t n_block_start,
     size_t n_block_size)
 {
-  const void* kernel = (const void*) ((uintptr_t) context->kernel + n_block_start * context->n_stride);
-  const void* bias = context->bias;
-  if (bias != NULL) {
-    bias = (const void*) ((uintptr_t) bias + n_block_start * context->b_stride);
-  }
-  void* packed_weights = (void*) ((uintptr_t) context->packed_weights + n_block_start * context->w_stride);
-
-  context->packw_gemm_gio(
-      /*groups=*/1, n_block_size, context->kc, context->nr, context->kr,
-      context->sr, context->k_stride_elements, kernel, bias, /*scale=*/NULL,
-      packed_weights, /*extra_bytes=*/0, /*params=*/NULL);
+  xnn_compute_batched_packw_gemm_gio(context, /*batch_index=*/0, n_block_start,
+                                     n_block_size);
 }
 
-void xnn_compute_batched_packw_gemm_gio(
-    const struct packw_gemm_gio_context context[restrict XNN_MIN_ELEMENTS(1)],
-    size_t batch_index,
-    size_t n_block_start,
-    size_t n_block_size)
-{
-  const void* kernel = (const void*) ((uintptr_t) context->kernel + n_block_start * context->n_stride +
-                                      batch_index * context->gk_stride);
-  const void* bias = context->bias;
-  if (bias != NULL) {
-    bias = (const void*) ((uintptr_t) bias + n_block_start * context->b_stride +
-                          batch_index * context->gb_stride);
-  }
-  void* packed_weights = (void*) ((uintptr_t) context->packed_weights + n_block_start * context->w_stride +
-                                  batch_index * context->gc_stride);
+void xnn_compute_batched_packw_gemm_goi(
+    const struct packw_gemm_goi_context context[restrict XNN_MIN_ELEMENTS(1)],
+    size_t batch_index, size_t n_block_start, size_t n_block_size) {
+  while (n_block_size > 0) {
+    const size_t n_step = min(n_block_size, context->nr);
 
-  context->packw_gemm_gio(
-      /*groups=*/1, n_block_size, context->kc, context->nr, context->kr,
-      context->sr, context->k_stride_elements, kernel, bias, /*scale=*/NULL,
-      packed_weights, /*extra_bytes=*/0, /*params=*/NULL);
+    const void* kernel = (const void*)((uintptr_t)context->kernel +
+                                       context->k_stride * n_block_start +
+                                       batch_index * context->gk_stride);
+    const void* bias = context->bias;
+    if (bias != NULL) {
+      bias = (const void*)((uintptr_t)bias + n_block_start * context->b_stride +
+                           batch_index * context->gb_stride);
+    }
+    void* packed_weights = (void*)((uintptr_t)context->packed_weights +
+                                   context->w_stride * n_block_start +
+                                   batch_index * context->gc_stride);
+
+    if (context->pack_weights_and_biases) {
+      context->pack_weights_and_biases(
+          /*flags=*/0, context->gemm_config, context->kc, n_step,
+          /*groups=*/1, /*block_size=*/0, /*k_stride=*/context->k_stride,
+          /*accumulator_init=*/bias, kernel,
+          /*init_extra_data0_fn=*/NULL,
+          /*extra_data0=*/NULL, /*extra_data0_element_size=*/0,
+          /*init_extra_data1_fn=*/NULL, /*extra_data1=*/NULL,
+          /*extra_data1_element_size=*/0, packed_weights, /*params=*/NULL);
+    } else {
+      context->packw_gemm_goi(
+          /*groups=*/1, n_step, context->kc, context->nr, context->kr,
+          context->sr, kernel, bias, /*scale=*/NULL, packed_weights,
+          /*extra_bytes=*/0, /*params=*/NULL);
+    }
+    n_block_size -= n_step;
+    n_block_start += n_step;
+  }
 }
 
 void xnn_compute_packw_gemm_goi(
@@ -342,45 +392,14 @@ void xnn_compute_packw_gemm_goi(
     size_t n_block_start,
     size_t n_block_size)
 {
-  const void* kernel = (const void*) ((const uintptr_t) context->kernel + context->k_stride * n_block_start);
-  const void* bias = context->bias;
-  if (bias != NULL) {
-    bias = (const void*) ((const uintptr_t) bias + (n_block_start * context->b_stride));
-  }
-  void* packed_weights = (void*) ((uintptr_t) context->packed_weights + context->w_stride * n_block_start);
-
-  context->packw_gemm_goi(
-      /*groups=*/1, n_block_size, context->kc, context->nr, context->kr,
-      context->sr, kernel, bias, /*scale=*/NULL, packed_weights,
-      /*extra_bytes=*/0, /*params=*/NULL);
-}
-
-void xnn_compute_batched_packw_gemm_goi(
-    const struct packw_gemm_goi_context context[restrict XNN_MIN_ELEMENTS(1)],
-    size_t batch_index,
-    size_t n_block_start,
-    size_t n_block_size)
-{
-  const void* kernel = (const void*) ((uintptr_t) context->kernel + context->k_stride * n_block_start +
-                                      batch_index * context->gk_stride);
-  const void* bias = context->bias;
-  if (bias != NULL) {
-    bias = (const void*) ((uintptr_t) bias + n_block_start * context->b_stride +
-                          batch_index * context->gb_stride);
-  }
-  void* packed_weights = (void*) ((uintptr_t) context->packed_weights + context->w_stride * n_block_start +
-                                  batch_index * context->gc_stride);
-
-  context->packw_gemm_goi(
-      /*groups=*/1, n_block_size, context->kc, context->nr, context->kr,
-      context->sr, kernel, bias, /*scale=*/NULL, packed_weights,
-      /*extra_bytes=*/0, /*params=*/NULL);
+  xnn_compute_batched_packw_gemm_goi(context, /*batch_index=*/0, n_block_start,
+                                     n_block_size);
 }
 
 void xnn_compute_hmp_grouped_gemm(
     const struct gemm_context context[restrict XNN_MIN_ELEMENTS(1)],
-    uint32_t uarch_index, size_t group_index, size_t mr_block_start,
-    size_t nr_block_start, size_t mr_block_size, size_t nr_block_size) {
+    uint32_t uarch_index, size_t group_index, size_t nr_block_start,
+    size_t mr_block_start, size_t nr_block_size, size_t mr_block_size) {
   const size_t k_scaled  = context->k_scaled;
   const size_t a_stride  = context->a_stride;
   const size_t cm_stride = context->cm_stride;
@@ -401,132 +420,211 @@ void xnn_compute_hmp_grouped_gemm(
     group_index_b = (index % context->batch_dims_b[k]) +
                     context->batch_dims_b[k] * group_index_b;
   }
-  if (context->quantization_params != NULL) {
-    // If the effective `mr_block_size` is smaller than the kernel's `mr`,
-    // create a padded copy of the dynamic quantization params.
-    const struct xnn_qd8_quantization_params* quantization_params =
-        &context->quantization_params[group_index_a * context->gq_stride +
-                                      mr_block_start];
-    struct xnn_qd8_quantization_params padded_quantization_params[XNN_MAX_MR];
-    if (mr_block_size < context->mr) {
-      memcpy(padded_quantization_params, quantization_params,
-             mr_block_size * sizeof(struct xnn_qd8_quantization_params));
-      for (size_t i = mr_block_size; i < context->mr; i++) {
-        padded_quantization_params[i] =
-            padded_quantization_params[mr_block_size - 1];
-      }
-      quantization_params = padded_quantization_params;
-    };
 
-    context->dq_ukernel.function[uarch_index](
-        mr_block_size, nr_block_size, k_scaled,
-        (const void*)((uintptr_t)context->a + mr_block_start * a_stride +
-                      group_index_a * context->ga_stride),
-        a_stride,
-        (const void*)((uintptr_t)context->packed_w +
-                      nr_block_start * context->w_stride +
-                      group_index_b * context->gw_stride),
-        (void*)((uintptr_t)context->c + mr_block_start * cm_stride +
-                (nr_block_start << context->log2_csize) +
-                group_index_c * context->gc_stride),
-        cm_stride, context->cn_stride, &context->params, quantization_params);
-  } else {
-    context->ukernel.function[uarch_index](
-        mr_block_size, nr_block_size, k_scaled,
-        (const void*)((uintptr_t)context->a + mr_block_start * a_stride +
-                      group_index_a * context->ga_stride),
-        a_stride,
-        (const void*)((uintptr_t)context->packed_w +
-                      nr_block_start * context->w_stride +
-                      group_index_b * context->gw_stride),
-        (void*)((uintptr_t)context->c + mr_block_start * cm_stride +
-                (nr_block_start << context->log2_csize) +
-                group_index_c * context->gc_stride),
-        cm_stride, context->cn_stride, &context->params);
+  while (mr_block_size > 0) {
+    const size_t mr_step = min(mr_block_size, context->mr);
+    if (context->quantization_params != NULL) {
+      // If the effective `mr_block_size` is smaller than the kernel's `mr`,
+      // create a padded copy of the dynamic quantization params.
+      const struct xnn_qd8_quantization_params* quantization_params =
+          &context->quantization_params[group_index_a * context->gq_stride +
+                                        mr_block_start];
+      struct xnn_qd8_quantization_params padded_quantization_params[XNN_MAX_MR];
+      if (mr_step < context->mr) {
+        for (size_t i = 0; i < mr_step; i++) {
+          padded_quantization_params[i] = quantization_params[i];
+        }
+        for (size_t i = mr_step; i < context->mr; i++) {
+          padded_quantization_params[i] =
+              padded_quantization_params[mr_step - 1];
+        }
+        quantization_params = padded_quantization_params;
+      };
+
+      context->dq_ukernel.function[uarch_index](
+          mr_step, nr_block_size, k_scaled,
+          (const void*)((uintptr_t)context->a + mr_block_start * a_stride +
+                        group_index_a * context->ga_stride),
+          a_stride,
+          (const void*)((uintptr_t)context->packed_w +
+                        nr_block_start * context->w_stride +
+                        group_index_b * context->gw_stride),
+          (void*)((uintptr_t)context->c + mr_block_start * cm_stride +
+                  (nr_block_start << context->log2_csize) +
+                  group_index_c * context->gc_stride),
+          cm_stride, context->cn_stride, &context->params, quantization_params);
+    } else {
+      context->ukernel.function[uarch_index](
+          mr_step, nr_block_size, k_scaled,
+          (const void*)((uintptr_t)context->a + mr_block_start * a_stride +
+                        group_index_a * context->ga_stride),
+          a_stride,
+          (const void*)((uintptr_t)context->packed_w +
+                        nr_block_start * context->w_stride +
+                        group_index_b * context->gw_stride),
+          (void*)((uintptr_t)context->c + mr_block_start * cm_stride +
+                  (nr_block_start << context->log2_csize) +
+                  group_index_c * context->gc_stride),
+          cm_stride, context->cn_stride, &context->params);
+    }
+    mr_block_size -= mr_step;
+    mr_block_start += mr_step;
   }
 }
 
 void xnn_compute_grouped_gemm(
     const struct gemm_context context[restrict XNN_MIN_ELEMENTS(1)],
-    size_t group_index, size_t mr_block_start, size_t nr_block_start,
-    size_t mr_block_size, size_t nr_block_size) {
+    size_t group_index, size_t nr_block_start, size_t mr_block_start,
+    size_t nr_block_size, size_t mr_block_size) {
   xnn_compute_hmp_grouped_gemm(context, XNN_UARCH_DEFAULT, group_index,
-                               mr_block_start, nr_block_start, mr_block_size,
-                               nr_block_size);
+                               nr_block_start, mr_block_start, nr_block_size,
+                               mr_block_size);
 }
 
+size_t xnn_x32_pack_lh_offset__neonsme2(size_t m, size_t k, size_t mr, size_t kr, size_t sr);
 void xnn_compute_gemm(
     const struct gemm_context context[restrict XNN_MIN_ELEMENTS(1)],
-    size_t mr_block_start,
-    size_t nr_block_start,
-    size_t mr_block_size,
-    size_t nr_block_size)
-{
+    size_t nr_block_start, size_t mr_block_start, size_t nr_block_size,
+    size_t mr_block_size) {
   const size_t a_stride  = context->a_stride;
   const size_t cm_stride = context->cm_stride;
 
-  context->ukernel.function[XNN_UARCH_DEFAULT](
-      mr_block_size,
-      nr_block_size,
-      context->k_scaled,
-      (const void*) ((uintptr_t) context->a + mr_block_start * a_stride),
-      a_stride,
-      (const void*) ((uintptr_t) context->packed_w + nr_block_start * context->w_stride),
-      (void*) ((uintptr_t) context->c + mr_block_start * cm_stride + (nr_block_start << context->log2_csize)),
-      cm_stride,
-      context->cn_stride,
-      context->fused_params);
+  while (mr_block_size > 0) {
+    const size_t mr_step = min(mr_block_size, context->mr);
+
+    context->ukernel.function[XNN_UARCH_DEFAULT](
+        mr_step, nr_block_size, context->k_scaled,
+        (const void*)((uintptr_t)context->a + mr_block_start * a_stride),
+        a_stride,
+        (const void*)((uintptr_t)context->packed_w +
+                      nr_block_start * context->w_stride),
+        (void*)((uintptr_t)context->c + mr_block_start * cm_stride +
+                (nr_block_start << context->log2_csize)),
+        cm_stride, context->cn_stride, context->fused_params);
+    mr_block_size -= mr_step;
+    mr_block_start += mr_step;
+  }
 }
 
 void xnn_compute_dqgemm(
     const struct gemm_context context[restrict XNN_MIN_ELEMENTS(1)],
-    size_t mr_block_start,
-    size_t nr_block_start,
-    size_t mr_block_size,
-    size_t nr_block_size)
-{
+    size_t nr_block_start, size_t mr_block_start, size_t nr_block_size,
+    size_t mr_block_size) {
   const size_t a_stride  = context->a_stride;
   const size_t cm_stride = context->cm_stride;
 
-  context->dq_ukernel.function[XNN_UARCH_DEFAULT](
-      mr_block_size,
-      nr_block_size,
-      context->k_scaled,
-      (const void*) ((uintptr_t) context->a + mr_block_start * a_stride),
-      a_stride,
-      (const void*) ((uintptr_t) context->packed_w + nr_block_start * context->w_stride),
-      (void*) ((uintptr_t) context->c + mr_block_start * cm_stride + (nr_block_start << context->log2_csize)),
-      cm_stride,
-      context->cn_stride,
-      context->fused_params,
-      (const void*) ((uintptr_t) &context->quantization_params[mr_block_start]));
+  while (mr_block_size > 0) {
+    const size_t mr_step = min(mr_block_size, context->mr);
+
+    context->dq_ukernel.function[XNN_UARCH_DEFAULT](
+        mr_step, nr_block_size, context->k_scaled,
+        (const void*)((uintptr_t)context->a + mr_block_start * a_stride),
+        a_stride,
+        (const void*)((uintptr_t)context->packed_w +
+                      nr_block_start * context->w_stride),
+        (void*)((uintptr_t)context->c + mr_block_start * cm_stride +
+                (nr_block_start << context->log2_csize)),
+        cm_stride, context->cn_stride, context->fused_params,
+        (const void*)((uintptr_t)&context
+                          ->quantization_params[mr_block_start]));
+    mr_block_size -= mr_step;
+    mr_block_start += mr_step;
+  }
+}
+
+void xnn_compute_hmp_grouped_qp8gemm(
+    const struct gemm_context context[restrict XNN_MIN_ELEMENTS(1)],
+    uint32_t uarch_index, size_t group_index, size_t nr_block_start,
+    size_t mr_block_start, size_t nr_block_size, size_t mr_block_size) {
+  const size_t cm_stride = context->cm_stride;
+  const size_t num_batch_dims = context->num_batch_dims;
+
+  // Compute the group index offsets into A and B.
+  const size_t group_index_c = group_index;
+  size_t group_index_a = 0;
+  size_t group_index_b = 0;
+  for (int k = 0; k < num_batch_dims; k++) {
+    // Extract the kth batch index from the group_index.
+    const size_t index = group_index / context->batch_strides_c[k];
+    group_index %= context->batch_strides_c[k];
+
+    // Compute the corresponding kth group index offsets into A and B.
+    group_index_a = (index % context->batch_dims_a[k]) +
+                    context->batch_dims_a[k] * group_index_a;
+    group_index_b = (index % context->batch_dims_b[k]) +
+                    context->batch_dims_b[k] * group_index_b;
+  }
+
+  while (mr_block_size > 0) {
+    const size_t mr_step = min(mr_block_size, context->mr);
+    const size_t a_offset = context->packed_lh_offset_fn(
+        mr_block_start, context->kc, context->mr, context->kr, context->sr);
+
+    context->qp8_ukernel.function[uarch_index](
+        mr_step, nr_block_size, context->k_scaled,
+        (const void*)((uintptr_t)context->a +
+                      group_index_a * context->ga_stride + a_offset),
+        (const void*)((uintptr_t)context->packed_w +
+                      group_index_b * context->gw_stride +
+                      nr_block_start * context->w_stride),
+        (void*)((uintptr_t)context->c + group_index_c * context->gc_stride +
+                mr_block_start * cm_stride +
+                (nr_block_start << context->log2_csize)),
+        cm_stride,
+        /*dst_stride_col=*/sizeof(float), context->fused_params);
+    mr_block_size -= mr_step;
+    mr_block_start += mr_step;
+  }
+}
+
+void xnn_compute_grouped_qp8gemm(
+    const struct gemm_context context[restrict XNN_MIN_ELEMENTS(1)],
+    size_t group_index, size_t nr_block_start, size_t mr_block_start,
+    size_t nr_block_size, size_t mr_block_size) {
+  xnn_compute_hmp_grouped_qp8gemm(context, XNN_UARCH_DEFAULT, group_index,
+                                  nr_block_start, mr_block_start, nr_block_size,
+                                  mr_block_size);
+}
+
+XNN_INLINE static void compute_hmp_qp8gemm(
+    const struct gemm_context context[restrict XNN_MIN_ELEMENTS(1)],
+    uint32_t uarch_index, size_t nr_block_start, size_t mr_block_start,
+    size_t nr_block_size, size_t mr_block_size) {
+  const size_t cm_stride = context->cm_stride;
+
+  while (mr_block_size > 0) {
+    const size_t mr_step = min(mr_block_size, context->mr);
+    const size_t a_offset = context->packed_lh_offset_fn(
+        mr_block_start, context->kc, context->mr, context->kr, context->sr);
+
+    context->qp8_ukernel.function[uarch_index](
+        mr_step, nr_block_size, context->k_scaled,
+        (const void*)((uintptr_t)context->a + a_offset),
+        (const void*)((uintptr_t)context->packed_w +
+                      nr_block_start * context->w_stride),
+        (void*)((uintptr_t)context->c + mr_block_start * cm_stride +
+                (nr_block_start << context->log2_csize)),
+        cm_stride,
+        /*dst_stride_col=*/sizeof(float), context->fused_params);
+    mr_block_size -= mr_step;
+    mr_block_start += mr_step;
+  }
 }
 
 void xnn_compute_hmp_qp8gemm(
     const struct gemm_context context[restrict XNN_MIN_ELEMENTS(1)],
-    uint32_t uarch_index, size_t mr_block_start, size_t nr_block_start,
-    size_t mr_block_size, size_t nr_block_size) {
-  const size_t a_offset = xnn_x8_packq_f32qp8_packed_offset(
-      mr_block_start, context->k_scaled, context->mr, context->kr, context->sr);
-  const size_t cm_stride = context->cm_stride;
-
-  context->qp8_ukernel.function[uarch_index](
-      mr_block_size, nr_block_size, context->k_scaled,
-      (const void*)((uintptr_t)context->a + a_offset),
-      (const void*)((uintptr_t)context->packed_w +
-                    nr_block_start * context->w_stride),
-      (void*)((uintptr_t)context->c + mr_block_start * cm_stride +
-              (nr_block_start << context->log2_csize)),
-      cm_stride,
-      /*dst_stride_col=*/sizeof(float), context->fused_params);
+    uint32_t uarch_index, size_t nr_block_start, size_t mr_block_start,
+    size_t nr_block_size, size_t mr_block_size) {
+  compute_hmp_qp8gemm(context, uarch_index, nr_block_start, mr_block_start,
+                      nr_block_size, mr_block_size);
 }
 
 void xnn_compute_qp8gemm(
     const struct gemm_context context[restrict XNN_MIN_ELEMENTS(1)],
-    size_t mr_block_start, size_t nr_block_start, size_t mr_block_size,
-    size_t nr_block_size) {
-  xnn_compute_hmp_qp8gemm(context, XNN_UARCH_DEFAULT, mr_block_start,
-                          nr_block_start, mr_block_size, nr_block_size);
+    size_t nr_block_start, size_t mr_block_start, size_t nr_block_size,
+    size_t mr_block_size) {
+  compute_hmp_qp8gemm(context, XNN_UARCH_DEFAULT, nr_block_start,
+                      mr_block_start, nr_block_size, mr_block_size);
 }
 
 void xnn_compute_spmm(
@@ -836,43 +934,6 @@ void xnn_compute_grouped_subgemm2d(
       &context->params);
 }
 
-void xnn_compute_subgemm2d(
-      const struct subgemm_context context[restrict XNN_MIN_ELEMENTS(1)],
-      size_t batch_index,
-      size_t subkernel_index,
-      size_t slice_y,
-      size_t slice_x_start,
-      size_t nc_block_start,
-      size_t slice_x_max,
-      size_t nc_block_size)
-{
-  const struct subconvolution_params* subconvolution_params = &context->subconvolution_params[subkernel_index];
-
-  if XNN_UNLIKELY(slice_y >= subconvolution_params->slice_height) {
-    return;
-  }
-
-  const size_t slice_width = subconvolution_params->slice_width;
-  if XNN_UNLIKELY(slice_x_start >= slice_width) {
-    return;
-  }
-  const size_t slice_x_size = min(slice_x_max, slice_width - slice_x_start);
-
-  const size_t ax_stride = context->ax_stride;
-  const size_t cx_stride = context->cx_stride;
-  context->ukernel.function[XNN_UARCH_DEFAULT](
-      slice_x_size,
-      nc_block_size,
-      context->kc,
-      (const void*) ((uintptr_t) context->a + slice_y * context->ay_stride + slice_x_start * ax_stride + batch_index * context->ba_stride),
-      ax_stride,
-      (const void*) ((uintptr_t) subconvolution_params->weights + nc_block_start * subconvolution_params->w_stride),
-      (void*) ((uintptr_t) subconvolution_params->output + slice_y * context->cy_stride + slice_x_start * cx_stride + batch_index * context->bc_stride + (nc_block_start << context->log2_csize)),
-      cx_stride,
-      context->cn_stride,
-      &context->params);
-}
-
 void xnn_compute_grouped_subconv2d(
       const struct subconv_context context[restrict XNN_MIN_ELEMENTS(1)],
       size_t batch_index,
@@ -1077,18 +1138,22 @@ void xnn_compute_dwconv_indirection(
 void xnn_compute_dwconv_unipass(
     const struct dwconv_context context[restrict XNN_MIN_ELEMENTS(1)],
     size_t batch_index,
-    size_t output_y)
+    size_t output_y,
+    size_t output_c_start,
+    size_t output_c_tile)
 {
   const void** indirect_input =
     (const void**) ((uintptr_t) context->indirect_input + output_y * context->indirect_input_height_stride);
-  const size_t input_offset = context->input_offset + batch_index * context->input_batch_stride;
+  const size_t input_offset = context->input_offset + batch_index * context->input_batch_stride + output_c_start * context->input_channel_stride;
   void* output = (void*) ((uintptr_t) context->output +
-    batch_index * context->output_batch_stride + output_y * context->output_height_stride);
+    batch_index * context->output_batch_stride + output_y * context->output_height_stride + output_c_start * context->output_channel_stride);
+  void* weights = (void*) ((uintptr_t) context->packed_weights + output_c_start * context->weights_channel_stride);
+  const size_t output_increment = context->output_pixel_stride - output_c_tile * context->output_channel_stride;
 
   context->unipass_ukernel(
-    context->groups, context->output_width,
-    indirect_input, context->packed_weights, output,
-    context->indirect_input_width_stride, context->output_increment,
+    output_c_tile, context->output_width,
+    indirect_input, weights, output,
+    context->indirect_input_width_stride, output_increment,
     input_offset, context->zero,
     &context->params);
 }
@@ -1106,10 +1171,11 @@ void xnn_compute_dwconv_multipass(
   void* multipass_buffer =
       (void*) ((uintptr_t) context->multipass_buffer + (batch_index * context->output_height + output_y) *
                context->buffer_size);
+  const size_t output_increment = context->output_pixel_stride - context->groups * context->output_channel_stride;
 
   context->multipass_ukernel(
     context->groups, context->output_width, indirect_input, context->packed_weights, output,
-    context->indirect_input_width_stride, context->output_increment, input_offset, context->zero, context->kernel_size,
+    context->indirect_input_width_stride, output_increment, input_offset, context->zero, context->kernel_size,
     multipass_buffer, &context->params);
 }
 
@@ -1125,10 +1191,11 @@ void xnn_compute_dwconv_multipass_with_thread(
   void* output = (void*) ((uintptr_t) context->output +
     batch_index * context->output_batch_stride + output_y * context->output_height_stride);
   void* multipass_buffer = (void*) ((uintptr_t) context->multipass_buffer + thread_index * context->buffer_size);
+  const size_t output_increment = context->output_pixel_stride - context->groups * context->output_channel_stride;
 
   context->multipass_ukernel(
     context->groups, context->output_width, indirect_input, context->packed_weights, output,
-    context->indirect_input_width_stride, context->output_increment, input_offset, context->zero, context->kernel_size,
+    context->indirect_input_width_stride, output_increment, input_offset, context->zero, context->kernel_size,
     multipass_buffer, &context->params);
 }
 
@@ -1605,14 +1672,14 @@ void xnn_compute_scaled_dot_product_attention(
     void* logits_row = logits;
     size_t i = tokens_block_size;
     do {
-      // Skip initialization of locals as they will be written to immediately.
-      float rowmax;
+      float rowmax = -INFINITY;
       context->rmax_ukernel(
         /*batch=*/key_value_tokens_scaled,
         /*input=*/logits_row,
         /*output=*/&rowmax,
         /*params=*/&context->rmax_params);
 
+      // Skip initialization of locals as they will be written to immediately.
       float rowsum;
       context->raddstoreexpminusmax_ukernel(
         /*batch=*/key_value_tokens_scaled,
@@ -1755,14 +1822,14 @@ void xnn_compute_scaled_dot_product_attention_with_thread(
     void* logits_row = logits;
     size_t i = tokens_block_size;
     do {
-      // Skip initialization of locals as they will be written to immediately.
-      float rowmax;
+      float rowmax = -INFINITY;
       context->rmax_ukernel(
         /*batch=*/key_value_tokens_scaled,
         /*input=*/logits_row,
         /*output=*/&rowmax,
         /*params=*/&context->rmax_params);
 
+      // Skip initialization of locals as they will be written to immediately.
       float rowsum;
       context->raddstoreexpminusmax_ukernel(
         /*batch=*/key_value_tokens_scaled,
@@ -1958,26 +2025,6 @@ void xnn_compute_elementwise_binary_5d(
   context->ukernel(context->elements, a, b, y, &context->params);
 }
 
-void xnn_compute_channel_shuffle_fixed(
-    const struct channel_shuffle_context context[restrict XNN_MIN_ELEMENTS(1)],
-    size_t index)
-{
-  const void* x = (const void*) ((uintptr_t) context->x + index * context->x_stride);
-  void* y = (void*) ((uintptr_t) context->y + index * context->y_stride);
-
-  context->fixed_ukernel(context->n, x, y);
-}
-
-void xnn_compute_channel_shuffle_variable(
-    const struct channel_shuffle_context context[restrict XNN_MIN_ELEMENTS(1)],
-    size_t index)
-{
-  const void* x = (const void*) ((uintptr_t) context->x + index * context->x_stride);
-  void* y = (void*) ((uintptr_t) context->y + index * context->y_stride);
-
-  context->variable_ukernel(context->n, context->m, x, y);
-}
-
 void xnn_compute_lut_strided(
     const struct lut_strided_context context[restrict XNN_MIN_ELEMENTS(1)],
     size_t batch_index)
@@ -2091,29 +2138,7 @@ void xnn_compute_contiguous_reduce(
     void* workspace_ptr = (void*) ((uintptr_t) context->workspace + workspace_offset);
     output_ptr = (void*) ((uintptr_t) context->output + output_offset);
 
-    if (context->s32_f32_cvt_ukernel) {
-      struct xnn_s32_f32_cvt_params s32_f32_cvt_params;
-      s32_f32_cvt_params.scalar.zero_point = context->params.qs8.num_elements * (int32_t) context->params.qs8.input_zero_point;
-      context->s32_f32_cvt_ukernel(context->accumulation_element_size * output2_block_size, workspace_ptr,
-                                   workspace_ptr, (union xnn_unary_uparams*) &s32_f32_cvt_params);
-      struct xnn_f32_qs8_cvt_params cvt_params;
-      cvt_params.scalar.scale = context->params.qs8.scale;
-      cvt_params.scalar.output_zero_point = context->params.qs8.output_zero_point;
-      context->cvt_ukernel(context->accumulation_element_size * output2_block_size, workspace_ptr,
-                           output_ptr, (union xnn_unary_uparams*) &cvt_params);
-    } else if (context->u32_f32_cvt_ukernel) {
-      struct xnn_s32_f32_cvt_params s32_f32_cvt_params;
-      s32_f32_cvt_params.scalar.zero_point = context->params.qu8.num_elements * (int32_t) context->params.qu8.input_zero_point;
-      context->u32_f32_cvt_ukernel(context->accumulation_element_size * output2_block_size, workspace_ptr,
-                                   workspace_ptr, (union xnn_unary_uparams*) &s32_f32_cvt_params);
-      struct xnn_f32_qu8_cvt_params cvt_params;
-      cvt_params.scalar.scale = context->params.qu8.scale;
-      cvt_params.scalar.output_zero_point = context->params.qu8.output_zero_point;
-      context->cvt_ukernel(context->accumulation_element_size * output2_block_size, workspace_ptr,
-                           output_ptr, (union xnn_unary_uparams*) &cvt_params);
-    } else {
-      context->cvt_ukernel(context->accumulation_element_size * output2_block_size, workspace_ptr, output_ptr, /*params=*/NULL);
-    }
+    context->cvt_ukernel(context->accumulation_element_size * output2_block_size, workspace_ptr, output_ptr, &context->cvt_params);
   }
 }
 
@@ -2174,29 +2199,7 @@ void xnn_compute_discontiguous_reduce(
     void* workspace_ptr = (void*) ((uintptr_t) context->workspace + workspace_offset);
     output_ptr = (void*) ((uintptr_t) context->output + output_offset);
 
-    if (context->s32_f32_cvt_ukernel) {
-      struct xnn_s32_f32_cvt_params s32_f32_cvt_params;
-      s32_f32_cvt_params.scalar.zero_point = context->params.qs8.num_elements * (int32_t) context->params.qs8.input_zero_point;
-      context->s32_f32_cvt_ukernel(context->accumulation_element_size * output2_block_size, workspace_ptr,
-                                   workspace_ptr, (union xnn_unary_uparams*) &s32_f32_cvt_params);
-      struct xnn_f32_qs8_cvt_params cvt_params;
-      cvt_params.scalar.scale = context->params.qs8.scale;
-      cvt_params.scalar.output_zero_point = context->params.qs8.output_zero_point;
-      context->cvt_ukernel(context->accumulation_element_size * output2_block_size, workspace_ptr,
-                           output_ptr, (union xnn_unary_uparams*) &cvt_params);
-    } else if (context->u32_f32_cvt_ukernel) {
-      struct xnn_s32_f32_cvt_params s32_f32_cvt_params;
-      s32_f32_cvt_params.scalar.zero_point = context->params.qu8.num_elements * (int32_t) context->params.qu8.input_zero_point;
-      context->u32_f32_cvt_ukernel(context->accumulation_element_size * output2_block_size, workspace_ptr,
-                                   workspace_ptr, (union xnn_unary_uparams*) &s32_f32_cvt_params);
-      struct xnn_f32_qu8_cvt_params cvt_params;
-      cvt_params.scalar.scale = context->params.qu8.scale;
-      cvt_params.scalar.output_zero_point = context->params.qu8.output_zero_point;
-      context->cvt_ukernel(context->accumulation_element_size * output2_block_size, workspace_ptr,
-                           output_ptr, (union xnn_unary_uparams*) &cvt_params);
-    } else {
-      context->cvt_ukernel(context->accumulation_element_size * output2_block_size, workspace_ptr, output_ptr, /*params=*/NULL);
-    }
+    context->cvt_ukernel(context->accumulation_element_size * output2_block_size, workspace_ptr, output_ptr, &context->cvt_params);
   }
 }
 
@@ -2211,8 +2214,12 @@ void xnn_compute_pad_qd8_params(
   }
 }
 
-void xnn_compute_f16_qd8_convert(
+typedef struct xnn_qd8_quantization_params(f16_quantization_params_fn)(xnn_float16 min, xnn_float16 max, xnn_float16* f32_scale);
+typedef struct xnn_qd8_quantization_params(f32_quantization_params_fn)(float min, float max, float* f32_scale);
+
+void xnn_compute_f16_qx8_convert(
     const struct f16_qd8_convert_context context[restrict XNN_MIN_ELEMENTS(1)],
+    f16_quantization_params_fn quantization_params_function,
     size_t batch_index)
 {
   const size_t x_stride = context->x_stride;
@@ -2221,13 +2228,49 @@ void xnn_compute_f16_qd8_convert(
   const void* input = (const void*) ((uintptr_t) context->x + x_stride * batch_index);
   void* output = (void*) ((uintptr_t) context->y + y_stride * batch_index);
 
-  xnn_float16 minmax[2];
+  xnn_float16 minmax[2] = {xnn_float16_from_bits(UINT16_C(0x7c00)), xnn_float16_from_bits(UINT16_C(0xfc00))};
   context->rminmax_ukernel(n, input, minmax, &context->params);
   xnn_float16 f16_scale;
-  context->quantization_params[batch_index] = xnn_f16_qd8_asymmetric_quantization_params(minmax[0], minmax[1], &f16_scale);
+  context->quantization_params[batch_index] = quantization_params_function(minmax[0], minmax[1], &f16_scale);
 
   struct xnn_f16_qs8_cvt_params params;
   params.scalar.scale = f16_scale;
+  params.scalar.output_zero_point = context->quantization_params[batch_index].zero_point;
+  context->convert_ukernel(n, input, output, (union xnn_unary_uparams*) &params);
+}
+
+void xnn_compute_f16_qd8_convert(
+    const struct f16_qd8_convert_context context[restrict XNN_MIN_ELEMENTS(1)],
+    size_t batch_index)
+{
+  xnn_compute_f16_qx8_convert(context, xnn_f16_qd8_asymmetric_quantization_params, batch_index);
+}
+
+void xnn_compute_f16_qdu8_convert(
+    const struct f16_qd8_convert_context context[restrict XNN_MIN_ELEMENTS(1)],
+    size_t batch_index)
+{
+  xnn_compute_f16_qx8_convert(context, xnn_f16_qdu8_asymmetric_quantization_params, batch_index);
+}
+
+void xnn_compute_f32_qx8_convert(
+    const struct f32_qd8_convert_context context[restrict XNN_MIN_ELEMENTS(1)],
+    f32_quantization_params_fn quantization_params_function,
+    size_t batch_index)
+{
+  const size_t x_stride = context->x_stride;
+  const size_t y_stride = context->y_stride;
+  const size_t n        = context->n;
+  const void* input = (const void*) ((uintptr_t) context->x + x_stride * batch_index);
+  void* output = (void*) ((uintptr_t) context->y + y_stride * batch_index);
+
+  float minmax[2] = {INFINITY, -INFINITY};
+  context->rminmax_ukernel(n, input, minmax, &context->params);
+  float scale;
+  context->quantization_params[batch_index] = quantization_params_function(minmax[0], minmax[1], &scale);
+
+  struct xnn_f32_qs8_cvt_params params;
+  params.scalar.scale = scale;
   params.scalar.output_zero_point = context->quantization_params[batch_index].zero_point;
   context->convert_ukernel(n, input, output, (union xnn_unary_uparams*) &params);
 }
@@ -2236,46 +2279,45 @@ void xnn_compute_f32_qd8_convert(
     const struct f32_qd8_convert_context context[restrict XNN_MIN_ELEMENTS(1)],
     size_t batch_index)
 {
-  const size_t x_stride = context->x_stride;
-  const size_t y_stride = context->y_stride;
-  const size_t n        = context->n;
-  const void* input = (const void*) ((uintptr_t) context->x + x_stride * batch_index);
-  void* output = (void*) ((uintptr_t) context->y + y_stride * batch_index);
-
-  float minmax[2];
-  context->rminmax_ukernel(n, input, minmax, &context->params);
-  context->quantization_params[batch_index] = xnn_f32_qd8_asymmetric_quantization_params(minmax[0], minmax[1]);
-
-  struct xnn_f32_qs8_cvt_params params;
-  params.scalar.scale = 1.0f / context->quantization_params[batch_index].inv_scale;
-  params.scalar.output_zero_point = context->quantization_params[batch_index].zero_point;
-  context->convert_ukernel(n, input, output, (union xnn_unary_uparams*) &params);
+  xnn_compute_f32_qx8_convert(context, xnn_f32_qd8_asymmetric_quantization_params, batch_index);
 }
 
-void xnn_compute_x32_pack_lh(
-    const struct x32_pack_lh_context context[restrict XNN_MIN_ELEMENTS(1)],
-    size_t m_idx_start, size_t tile) {
-  const float* lhs = (const float*)((const char*)context->lhs +
-                                    m_idx_start * context->lhs_stride);
-  const size_t offset = context->k * m_idx_start;
-  float* lhs_packed = context->lhs_packed + offset;
+void xnn_compute_f32_qdu8_convert(
+    const struct f32_qd8_convert_context context[restrict XNN_MIN_ELEMENTS(1)],
+    size_t batch_index)
+{
+  xnn_compute_f32_qx8_convert(context, xnn_f32_qdu8_asymmetric_quantization_params, batch_index);
+}
+
+void xnn_compute_pack_lh(
+    const struct pack_lh_context context[restrict XNN_MIN_ELEMENTS(1)],
+    size_t group_idx, size_t m_idx_start, size_t tile) {
+  const void* lhs =
+      (const void*)((uintptr_t)context->lhs + group_idx * context->gi_stride +
+                    m_idx_start * context->lhs_stride);
+  const size_t offset = context->packed_offset_fn(
+      m_idx_start, context->k, context->mr, context->kr, context->sr);
+  void* lhs_packed = (void*)((uintptr_t)context->lhs_packed +
+                             group_idx * context->gp_stride + offset);
 
   context->pack_lh_ukernel(/*m=*/tile, context->k, context->mr, context->kr,
-                         context->sr, 0, (const uint32_t*) lhs, context->lhs_stride,
-                         (uint32_t*) lhs_packed);
+                           context->sr, /*m_idx_start=*/0, lhs,
+                           context->lhs_stride, lhs_packed);
 }
 
 void xnn_compute_f32_qp8_convert(
     const struct f32_qp8_convert_context context[restrict XNN_MIN_ELEMENTS(1)],
-    size_t m_idx_start) {
+    size_t group_idx, size_t m_idx_start, size_t m_tile) {
   const float* lhs = (const float*)((const char*)context->lhs +
-                                    m_idx_start * context->lhs_stride);
-  int8_t* lhs_packed =
-      context->lhs_packed +
-      xnn_x8_packq_f32qp8_packed_offset(m_idx_start, context->k, context->mr,
-                                        context->kr, context->sr);
+                                    (group_idx * context->m + m_idx_start) *
+                                        context->lhs_stride);
+  int8_t* lhs_packed = (int8_t*)((uintptr_t)context->lhs_packed +
+                                 group_idx * context->group_stride +
+                                 xnn_x8_packq_f32qp8_packed_offset(
+                                     m_idx_start, context->k, context->mr,
+                                     context->kr, context->sr));
 
-  context->packq_ukernel(/*m=*/1, context->k, context->mr, context->kr,
+  context->packq_ukernel(/*m=*/m_tile, context->k, context->mr, context->kr,
                          context->sr, m_idx_start, lhs, context->lhs_stride,
                          lhs_packed);
 }
@@ -2306,21 +2348,22 @@ void xnn_compute_floating_point_softmax(
   // First pass: reduce-max
   union {
     float as_float;
-    uint16_t as_half;
+    xnn_float16 as_half;
   } x_max;
+  memcpy(&x_max, &context->rmax_init, sizeof(x_max));
   context->rmax_ukernel(n, x, &x_max, &context->rmax_params);
 
   // Second pass: reduce-add & store exp(x-x_max)
   union {
     float as_float;
-    uint16_t as_half;
+    xnn_float16 as_half;
   } y_sum;
   context->raddstoreexpminusmax_ukernel(n, x, &x_max, y, &y_sum, &context->expminus_params);
 
   // Third pass: scale y
   union {
     float as_float;
-    uint16_t as_half;
+    xnn_float16 as_half;
   } y_scale;
   context->compute_reciprocal(&y_sum, &y_scale);
   context->vmulc_ukernel(n, y, &y_scale, y, &context->minmax_params);
@@ -2367,46 +2410,51 @@ void xnn_compute_rope(
 #if XNN_MAX_UARCH_TYPES > 1
 void xnn_compute_hmp_gemm(
     const struct gemm_context context[restrict XNN_MIN_ELEMENTS(1)],
-    uint32_t uarch_index, size_t mr_block_start, size_t nr_block_start,
-    size_t mr_block_size, size_t nr_block_size) {
+    uint32_t uarch_index, size_t nr_block_start, size_t mr_block_start,
+    size_t nr_block_size, size_t mr_block_size) {
   const size_t a_stride = context->a_stride;
   const size_t cm_stride = context->cm_stride;
 
-  context->ukernel.function[uarch_index](
-      mr_block_size, nr_block_size, context->k_scaled,
-      (const void*)((uintptr_t)context->a + mr_block_start * a_stride),
-      a_stride,
-      (const void*)((uintptr_t)context->packed_w +
-                    nr_block_start * context->w_stride),
-      (void*)((uintptr_t)context->c + mr_block_start * cm_stride +
-              (nr_block_start << context->log2_csize)),
-      cm_stride, context->cn_stride, context->fused_params);
-  }
-
-  void xnn_compute_hmp_dqgemm(
-      const struct gemm_context context[restrict XNN_MIN_ELEMENTS(1)],
-      uint32_t uarch_index,
-      size_t mr_block_start,
-      size_t nr_block_start,
-      size_t mr_block_size,
-      size_t nr_block_size)
-  {
-    const size_t a_stride  = context->a_stride;
-    const size_t cm_stride = context->cm_stride;
-
-    context->dq_ukernel.function[uarch_index](
-        mr_block_size,
-        nr_block_size,
-        context->k_scaled,
-        (const void*) ((uintptr_t) context->a + mr_block_start * a_stride),
+  while (mr_block_size > 0) {
+    const size_t mr_step = min(mr_block_size, context->mr);
+    context->ukernel.function[uarch_index](
+        mr_step, nr_block_size, context->k_scaled,
+        (const void*)((uintptr_t)context->a + mr_block_start * a_stride),
         a_stride,
-        (const void*) ((uintptr_t) context->packed_w + nr_block_start * context->w_stride),
-        (void*) ((uintptr_t) context->c + mr_block_start * cm_stride + (nr_block_start << context->log2_csize)),
-        cm_stride,
-        context->cn_stride,
-        context->fused_params,
-       (const void*) ((uintptr_t) &context->quantization_params[mr_block_start]));
+        (const void*)((uintptr_t)context->packed_w +
+                      nr_block_start * context->w_stride),
+        (void*)((uintptr_t)context->c + mr_block_start * cm_stride +
+                (nr_block_start << context->log2_csize)),
+        cm_stride, context->cn_stride, context->fused_params);
+    mr_block_size -= mr_step;
+    mr_block_start += mr_step;
   }
+}
+
+void xnn_compute_hmp_dqgemm(
+    const struct gemm_context context[restrict XNN_MIN_ELEMENTS(1)],
+    uint32_t uarch_index, size_t nr_block_start, size_t mr_block_start,
+    size_t nr_block_size, size_t mr_block_size) {
+  const size_t a_stride = context->a_stride;
+  const size_t cm_stride = context->cm_stride;
+
+  while (mr_block_size > 0) {
+    const size_t mr_step = min(mr_block_size, context->mr);
+    context->dq_ukernel.function[uarch_index](
+        mr_step, nr_block_size, context->k_scaled,
+        (const void*)((uintptr_t)context->a + mr_block_start * a_stride),
+        a_stride,
+        (const void*)((uintptr_t)context->packed_w +
+                      nr_block_start * context->w_stride),
+        (void*)((uintptr_t)context->c + mr_block_start * cm_stride +
+                (nr_block_start << context->log2_csize)),
+        cm_stride, context->cn_stride, context->fused_params,
+        (const void*)((uintptr_t)&context
+                          ->quantization_params[mr_block_start]));
+    mr_block_size -= mr_step;
+    mr_block_start += mr_step;
+  }
+}
 
   void xnn_compute_hmp_grouped_batch_igemm(
       const struct igemm_context context[restrict XNN_MIN_ELEMENTS(1)],
@@ -3007,6 +3055,14 @@ enum xnn_status xnn_run_operator_with_index(
             op->compute[i].tile[0],
             flags);
         break;
+      case xnn_parallelization_type_1d_tile_1d_dynamic:
+        assert(op->compute[i].range[0] != 0);
+        assert(op->compute[i].tile[0] != 0);
+        pthreadpool_parallelize_1d_tile_1d_dynamic(
+            threadpool, op->compute[i].task_1d_tile_1d_dynamic,
+            (void*)((uintptr_t)&op->context + op->compute[i].context_offset),
+            op->compute[i].range[0], op->compute[i].tile[0], flags);
+        break;
       case xnn_parallelization_type_2d:
         assert(op->compute[i].range[0] != 0);
         assert(op->compute[i].range[1] != 0);
@@ -3051,6 +3107,27 @@ enum xnn_status xnn_run_operator_with_index(
             op->compute[i].range[0], op->compute[i].range[1],
             op->compute[i].tile[0], op->compute[i].tile[1],
             flags);
+        break;
+      case xnn_parallelization_type_2d_tile_1d_dynamic:
+        assert(op->compute[i].range[0] != 0);
+        assert(op->compute[i].range[1] != 0);
+        assert(op->compute[i].tile[0] != 0);
+        pthreadpool_parallelize_2d_tile_1d_dynamic(
+            threadpool, op->compute[i].task_2d_tile_1d_dynamic,
+            (void*)((uintptr_t)&op->context + op->compute[i].context_offset),
+            op->compute[i].range[0], op->compute[i].range[1],
+            op->compute[i].tile[0], flags);
+        break;
+      case xnn_parallelization_type_2d_tile_2d_dynamic:
+        assert(op->compute[i].range[0] != 0);
+        assert(op->compute[i].range[1] != 0);
+        assert(op->compute[i].tile[0] != 0);
+        assert(op->compute[i].tile[1] != 0);
+        pthreadpool_parallelize_2d_tile_2d_dynamic(
+            threadpool, op->compute[i].task_2d_tile_2d_dynamic,
+            (void*)((uintptr_t)&op->context + op->compute[i].context_offset),
+            op->compute[i].range[0], op->compute[i].range[1],
+            op->compute[i].tile[0], op->compute[i].tile[1], flags);
         break;
       case xnn_parallelization_type_3d:
         assert(op->compute[i].range[0] != 0);
@@ -3102,6 +3179,19 @@ enum xnn_status xnn_run_operator_with_index(
             op->compute[i].range[0], op->compute[i].range[1], op->compute[i].range[2],
             op->compute[i].tile[0], op->compute[i].tile[1],
             flags);
+        break;
+      case xnn_parallelization_type_3d_tile_2d_dynamic:
+        assert(op->compute[i].range[0] != 0);
+        assert(op->compute[i].range[1] != 0);
+        assert(op->compute[i].range[2] != 0);
+        assert(op->compute[i].tile[0] != 0);
+        assert(op->compute[i].tile[1] != 0);
+        pthreadpool_parallelize_3d_tile_2d_dynamic(
+            threadpool, op->compute[i].task_3d_tile_2d_dynamic,
+            (void*)((uintptr_t)&op->context + op->compute[i].context_offset),
+            op->compute[i].range[0], op->compute[i].range[1],
+            op->compute[i].range[2], op->compute[i].tile[0],
+            op->compute[i].tile[1], flags);
         break;
       case xnn_parallelization_type_4d:
         assert(op->compute[i].range[0] != 0);
@@ -3207,6 +3297,18 @@ enum xnn_status xnn_run_operator_with_index(
             op->compute[i].tile[0], op->compute[i].tile[1],
             flags);
         break;
+      case xnn_parallelization_type_2d_tile_2d_dynamic_with_uarch:
+        assert(op->compute[i].range[0] != 0);
+        assert(op->compute[i].range[1] != 0);
+        assert(op->compute[i].tile[0] != 0);
+        assert(op->compute[i].tile[1] != 0);
+        pthreadpool_parallelize_2d_tile_2d_dynamic_with_uarch(
+            threadpool, op->compute[i].task_2d_tile_2d_dynamic_with_id,
+            (void*)((uintptr_t)&op->context + op->compute[i].context_offset),
+            /*default_uarch_index=*/0, XNN_MAX_UARCH_TYPES - 1,
+            op->compute[i].range[0], op->compute[i].range[1],
+            op->compute[i].tile[0], op->compute[i].tile[1], flags);
+        break;
       case xnn_parallelization_type_3d_tile_1d_with_uarch:
         assert(op->compute[i].range[0] != 0);
         assert(op->compute[i].range[1] != 0);
@@ -3249,6 +3351,20 @@ enum xnn_status xnn_run_operator_with_index(
             op->compute[i].range[0], op->compute[i].range[1], op->compute[i].range[2],
             op->compute[i].tile[0], op->compute[i].tile[1],
             flags);
+        break;
+      case xnn_parallelization_type_3d_tile_2d_dynamic_with_uarch:
+        assert(op->compute[i].range[0] != 0);
+        assert(op->compute[i].range[1] != 0);
+        assert(op->compute[i].range[2] != 0);
+        assert(op->compute[i].tile[0] != 0);
+        assert(op->compute[i].tile[1] != 0);
+        pthreadpool_parallelize_3d_tile_2d_dynamic_with_uarch(
+            threadpool, op->compute[i].task_3d_tile_2d_dynamic_with_id,
+            (void*)((uintptr_t)&op->context + op->compute[i].context_offset),
+            /*default_uarch_index=*/0, XNN_MAX_UARCH_TYPES - 1,
+            op->compute[i].range[0], op->compute[i].range[1],
+            op->compute[i].range[2], op->compute[i].tile[0],
+            op->compute[i].tile[1], flags);
         break;
       case xnn_parallelization_type_4d_tile_2d_with_uarch:
         assert(op->compute[i].range[0] != 0);

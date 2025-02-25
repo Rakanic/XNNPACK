@@ -21,6 +21,7 @@
 #include "xnnpack/operator.h"
 #include "xnnpack/subgraph.h"
 #include "replicable_random_device.h"
+#include "runtime-flags.h"
 
 template <class T> class StaticResizeBilinear2DTestBase : public ::testing::Test {
  protected:
@@ -246,7 +247,7 @@ TEST_F(StaticResizeBilinear2DTestQS8, matches_operator_api)
 
   // Call operator API.
   xnn_operator_t op = nullptr;
-  const xnn_status status = xnn_create_resize_bilinear2d_nhwc_s8(output_height, output_width, /*flags=*/0, &op);
+  const xnn_status status = xnn_create_resize_bilinear2d_nhwc(xnn_datatype_qint8, output_height, output_width, /*flags=*/0, &op);
   std::unique_ptr<xnn_operator, decltype(&xnn_delete_operator)> auto_op(op, xnn_delete_operator);
 
   if (status == xnn_status_unsupported_hardware) {
@@ -259,12 +260,12 @@ TEST_F(StaticResizeBilinear2DTestQS8, matches_operator_api)
   size_t workspace_alignment = SIZE_MAX;
   ASSERT_EQ(
     xnn_status_success,
-    xnn_reshape_resize_bilinear2d_nhwc_s8(
+    xnn_reshape_resize_bilinear2d_nhwc(
       op, batch_size, input_height, input_width, channels, channels, channels,
       &workspace_size, &workspace_alignment, /*threadpool=*/nullptr));
   ASSERT_EQ(workspace_size, 0);
   ASSERT_EQ(workspace_alignment, 1);
-  ASSERT_EQ(xnn_status_success, xnn_setup_resize_bilinear2d_nhwc_s8(op, /*workspace=*/nullptr, input.data(), operator_output.data()));
+  ASSERT_EQ(xnn_status_success, xnn_setup_resize_bilinear2d_nhwc(op, /*workspace=*/nullptr, input.data(), operator_output.data()));
 
   ASSERT_EQ(xnn_status_success, xnn_run_operator(op, /*threadpool=*/nullptr));
 
@@ -291,7 +292,7 @@ TEST_F(StaticResizeBilinear2DTestQS8, matches_operator_api)
     xnn_define_static_resize_bilinear_2d(subgraph, output_height, output_width, input_id, output_id, /*flags=*/0));
 
   xnn_runtime_t runtime = nullptr;
-  ASSERT_EQ(xnn_status_success, xnn_create_runtime_v3(subgraph, nullptr, nullptr, /*flags=*/0, &runtime));
+  ASSERT_EQ(xnn_status_success, xnn_create_runtime_v3(subgraph, nullptr, nullptr, xnn_test_runtime_flags(), &runtime));
   ASSERT_NE(nullptr, runtime);
   std::unique_ptr<xnn_runtime, decltype(&xnn_delete_runtime)> auto_runtime(runtime, xnn_delete_runtime);
   std::array<xnn_external_value, 2> external = {
@@ -313,7 +314,7 @@ TEST_F(StaticResizeBilinear2DTestQU8, matches_operator_api)
 
   // Call operator API.
   xnn_operator_t op = nullptr;
-  const xnn_status status = xnn_create_resize_bilinear2d_nhwc_u8(output_height, output_width, /*flags=*/0, &op);
+  const xnn_status status = xnn_create_resize_bilinear2d_nhwc(xnn_datatype_quint8, output_height, output_width, /*flags=*/0, &op);
   std::unique_ptr<xnn_operator, decltype(&xnn_delete_operator)> auto_op(op, xnn_delete_operator);
 
   if (status == xnn_status_unsupported_hardware) {
@@ -326,12 +327,12 @@ TEST_F(StaticResizeBilinear2DTestQU8, matches_operator_api)
   size_t workspace_alignment = SIZE_MAX;
   ASSERT_EQ(
     xnn_status_success,
-    xnn_reshape_resize_bilinear2d_nhwc_u8(
+    xnn_reshape_resize_bilinear2d_nhwc(
       op, batch_size, input_height, input_width, channels, channels, channels,
       &workspace_size, &workspace_alignment, /*threadpool=*/nullptr));
   ASSERT_EQ(workspace_size, 0);
   ASSERT_EQ(workspace_alignment, 1);
-  ASSERT_EQ(xnn_status_success, xnn_setup_resize_bilinear2d_nhwc_u8(op, /*workspace=*/nullptr, input.data(), operator_output.data()));
+  ASSERT_EQ(xnn_status_success, xnn_setup_resize_bilinear2d_nhwc(op, /*workspace=*/nullptr, input.data(), operator_output.data()));
 
   ASSERT_EQ(xnn_status_success, xnn_run_operator(op, /*threadpool=*/nullptr));
 
@@ -358,7 +359,7 @@ TEST_F(StaticResizeBilinear2DTestQU8, matches_operator_api)
     xnn_define_static_resize_bilinear_2d(subgraph, output_height, output_width, input_id, output_id, /*flags=*/0));
 
   xnn_runtime_t runtime = nullptr;
-  ASSERT_EQ(xnn_status_success, xnn_create_runtime_v3(subgraph, nullptr, nullptr, /*flags=*/0, &runtime));
+  ASSERT_EQ(xnn_status_success, xnn_create_runtime_v3(subgraph, nullptr, nullptr, xnn_test_runtime_flags(), &runtime));
   ASSERT_NE(nullptr, runtime);
   std::unique_ptr<xnn_runtime, decltype(&xnn_delete_runtime)> auto_runtime(runtime, xnn_delete_runtime);
   std::array<xnn_external_value, 2> external = {
@@ -376,7 +377,7 @@ TEST_F(StaticResizeBilinear2DTestF16, matches_operator_api)
 
   // Call operator API.
   xnn_operator_t op = nullptr;
-  const xnn_status status = xnn_create_resize_bilinear2d_nhwc_f16(output_height, output_width, /*flags=*/0, &op);
+  const xnn_status status = xnn_create_resize_bilinear2d_nhwc(xnn_datatype_fp16, output_height, output_width, /*flags=*/0, &op);
   std::unique_ptr<xnn_operator, decltype(&xnn_delete_operator)> auto_op(op, xnn_delete_operator);
 
   if (status == xnn_status_unsupported_hardware) {
@@ -389,12 +390,12 @@ TEST_F(StaticResizeBilinear2DTestF16, matches_operator_api)
   size_t workspace_alignment = SIZE_MAX;
   ASSERT_EQ(
     xnn_status_success,
-    xnn_reshape_resize_bilinear2d_nhwc_f16(
+    xnn_reshape_resize_bilinear2d_nhwc(
       op, batch_size, input_height, input_width, channels, channels, channels,
       &workspace_size, &workspace_alignment, /*threadpool=*/nullptr));
   ASSERT_EQ(workspace_size, 0);
   ASSERT_EQ(workspace_alignment, 1);
-  ASSERT_EQ(xnn_status_success, xnn_setup_resize_bilinear2d_nhwc_f16(op, /*workspace=*/nullptr, input.data(), operator_output.data()));
+  ASSERT_EQ(xnn_status_success, xnn_setup_resize_bilinear2d_nhwc(op, /*workspace=*/nullptr, input.data(), operator_output.data()));
 
   ASSERT_EQ(xnn_status_success, xnn_run_operator(op, /*threadpool=*/nullptr));
 
@@ -421,7 +422,7 @@ TEST_F(StaticResizeBilinear2DTestF16, matches_operator_api)
     xnn_define_static_resize_bilinear_2d(subgraph, output_height, output_width, input_id, output_id, /*flags=*/0));
 
   xnn_runtime_t runtime = nullptr;
-  ASSERT_EQ(xnn_status_success, xnn_create_runtime_v3(subgraph, nullptr, nullptr, /*flags=*/0, &runtime));
+  ASSERT_EQ(xnn_status_success, xnn_create_runtime_v3(subgraph, nullptr, nullptr, xnn_test_runtime_flags(), &runtime));
   ASSERT_NE(nullptr, runtime);
   std::unique_ptr<xnn_runtime, decltype(&xnn_delete_runtime)> auto_runtime(runtime, xnn_delete_runtime);
   std::array<xnn_external_value, 2> external = {
@@ -439,7 +440,7 @@ TEST_F(StaticResizeBilinear2DTestF32, matches_operator_api)
 
   // Call operator API.
   xnn_operator_t op = nullptr;
-  const xnn_status status = xnn_create_resize_bilinear2d_nhwc_f32(output_height, output_width, /*flags=*/0, &op);
+  const xnn_status status = xnn_create_resize_bilinear2d_nhwc(xnn_datatype_fp32, output_height, output_width, /*flags=*/0, &op);
   std::unique_ptr<xnn_operator, decltype(&xnn_delete_operator)> auto_op(op, xnn_delete_operator);
 
   if (status == xnn_status_unsupported_hardware) {
@@ -452,12 +453,12 @@ TEST_F(StaticResizeBilinear2DTestF32, matches_operator_api)
   size_t workspace_alignment = SIZE_MAX;
   ASSERT_EQ(
     xnn_status_success,
-    xnn_reshape_resize_bilinear2d_nhwc_f32(
+    xnn_reshape_resize_bilinear2d_nhwc(
       op, batch_size, input_height, input_width, channels, channels, channels,
       &workspace_size, &workspace_alignment, /*threadpool=*/nullptr));
   ASSERT_EQ(workspace_size, 0);
   ASSERT_EQ(workspace_alignment, 1);
-  ASSERT_EQ(xnn_status_success, xnn_setup_resize_bilinear2d_nhwc_f32(op, /*workspace=*/nullptr, input.data(), operator_output.data()));
+  ASSERT_EQ(xnn_status_success, xnn_setup_resize_bilinear2d_nhwc(op, /*workspace=*/nullptr, input.data(), operator_output.data()));
 
   ASSERT_EQ(xnn_status_success, xnn_run_operator(op, /*threadpool=*/nullptr));
 
@@ -484,7 +485,7 @@ TEST_F(StaticResizeBilinear2DTestF32, matches_operator_api)
     xnn_define_static_resize_bilinear_2d(subgraph, output_height, output_width, input_id, output_id, /*flags=*/0));
 
   xnn_runtime_t runtime = nullptr;
-  ASSERT_EQ(xnn_status_success, xnn_create_runtime_v3(subgraph, nullptr, nullptr, /*flags=*/0, &runtime));
+  ASSERT_EQ(xnn_status_success, xnn_create_runtime_v3(subgraph, nullptr, nullptr, xnn_test_runtime_flags(), &runtime));
   ASSERT_NE(nullptr, runtime);
   std::unique_ptr<xnn_runtime, decltype(&xnn_delete_runtime)> auto_runtime(runtime, xnn_delete_runtime);
   std::array<xnn_external_value, 2> external = {
@@ -523,7 +524,7 @@ TEST_F(StaticResizeBilinear2DTestF32, reshape_output)
     xnn_define_static_resize_bilinear_2d(subgraph, output_height, output_width, input_id, output_id, /*flags=*/0));
 
   xnn_runtime_t runtime = nullptr;
-  ASSERT_EQ(xnn_status_success, xnn_create_runtime_v3(subgraph, nullptr, nullptr, /*flags=*/0, &runtime));
+  ASSERT_EQ(xnn_status_success, xnn_create_runtime_v3(subgraph, nullptr, nullptr, xnn_test_runtime_flags(), &runtime));
   ASSERT_NE(nullptr, runtime);
   std::unique_ptr<xnn_runtime, decltype(&xnn_delete_runtime)> auto_runtime(runtime, xnn_delete_runtime);
   std::array<xnn_external_value, 2> external = {

@@ -13,13 +13,16 @@ SET(PROD_AVX_MICROKERNEL_SRCS
   src/f16-f32-vcvt/gen/f16-f32-vcvt-avx-int16-u16.c
   src/f32-dwconv/gen/f32-dwconv-3p16c-minmax-avx.c
   src/f32-dwconv/gen/f32-dwconv-4p16c-minmax-avx.c
-  src/f32-dwconv/gen/f32-dwconv-6f6m7l8c8s4r-minmax-avx.c
   src/f32-dwconv/gen/f32-dwconv-9p16c-minmax-avx.c
-  src/f32-dwconv/gen/f32-dwconv-25p8c-minmax-avx.c
+  src/f32-dwconv/gen/f32-dwconv-25p16c-minmax-avx.c
   src/f32-f16-vcvt/gen/f32-f16-vcvt-avx-u24.c
+  src/f32-gemm/gen/f32-gemm-1x8-minmax-avx-broadcast.c
   src/f32-gemm/gen/f32-gemm-1x16-minmax-avx-broadcast.c
+  src/f32-gemm/gen/f32-gemm-5x8-minmax-avx-broadcast.c
   src/f32-gemm/gen/f32-gemm-5x16-minmax-avx-broadcast.c
+  src/f32-igemm/gen/f32-igemm-1x8-minmax-avx-broadcast.c
   src/f32-igemm/gen/f32-igemm-1x16-minmax-avx-broadcast.c
+  src/f32-igemm/gen/f32-igemm-5x8-minmax-avx-broadcast.c
   src/f32-igemm/gen/f32-igemm-5x16-minmax-avx-broadcast.c
   src/f32-qc4w-gemm/gen/f32-qc4w-gemm-1x16-minmax-avx-broadcast.c
   src/f32-qc4w-gemm/gen/f32-qc4w-gemm-3x16-minmax-avx-broadcast.c
@@ -63,7 +66,7 @@ SET(PROD_AVX_MICROKERNEL_SRCS
   src/f32-vrnd/gen/f32-vrndu-avx-u16.c
   src/f32-vrnd/gen/f32-vrndz-avx-u16.c
   src/f32-vrsqrt/gen/f32-vrsqrt-avx-rsqrt-u16.c
-  src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-nr2-u40.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-nr2-u16.c
   src/f32-vsqrt/gen/f32-vsqrt-avx-rsqrt-u16.c
   src/f32-vtanh/gen/f32-vtanh-avx-rational-9-8-div.c
   src/f32-vunary/gen/f32-vabs-avx.c
@@ -101,6 +104,9 @@ SET(PROD_AVX_MICROKERNEL_SRCS
   src/qu8-vmul/gen/qu8-vmul-minmax-fp32-avx-mul16-ld64-u16.c
   src/qu8-vmulc/gen/qu8-vmulc-minmax-fp32-avx-mul16-ld64-u16.c
   src/x8-lut/gen/x8-lut-avx-u64.c
+  src/x32-packw/gen/x32-packw-x8-gemm-gio-avx-u8.c
+  src/x32-packw/gen/x32-packw-x8-gemm-goi-avx-u4.c
+  src/x32-packw/gen/x32-packw-x16-gemm-gio-avx-u8.c
   src/x32-packw/gen/x32-packw-x16-gemm-goi-avx-u4.c
   src/x32-packw/gen/x32-packw-x16s4-gemm-goi-avx-u4.c
   src/x32-transposec/gen/x32-transposec-8x8-reuse-multi-avx.c
@@ -125,6 +131,7 @@ SET(NON_PROD_AVX_MICROKERNEL_SRCS
   src/f32-dwconv/gen/f32-dwconv-5f5m5l16c8s4r-minmax-avx-acc2.c
   src/f32-dwconv/gen/f32-dwconv-5f5m5l16c8s4r-minmax-avx.c
   src/f32-dwconv/gen/f32-dwconv-6f6m7l8c8s4r-minmax-avx-acc2.c
+  src/f32-dwconv/gen/f32-dwconv-6f6m7l8c8s4r-minmax-avx.c
   src/f32-dwconv/gen/f32-dwconv-6f6m7l16c8s4r-minmax-avx-acc2.c
   src/f32-dwconv/gen/f32-dwconv-6f6m7l16c8s4r-minmax-avx.c
   src/f32-dwconv/gen/f32-dwconv-8f8m9l8c8s4r-minmax-avx-acc2.c
@@ -135,16 +142,14 @@ SET(NON_PROD_AVX_MICROKERNEL_SRCS
   src/f32-dwconv/gen/f32-dwconv-9p8c-minmax-avx.c
   src/f32-dwconv/gen/f32-dwconv-9p16c-minmax-avx-acc2.c
   src/f32-dwconv/gen/f32-dwconv-25p8c-minmax-avx-acc2.c
+  src/f32-dwconv/gen/f32-dwconv-25p8c-minmax-avx.c
   src/f32-dwconv/gen/f32-dwconv-25p16c-minmax-avx-acc2.c
-  src/f32-dwconv/gen/f32-dwconv-25p16c-minmax-avx.c
   src/f32-f16-vcvt/gen/f32-f16-vcvt-avx-u8.c
   src/f32-f16-vcvt/gen/f32-f16-vcvt-avx-u16.c
   src/f32-f16-vcvt/gen/f32-f16-vcvt-avx-u32.c
-  src/f32-gemm/gen/f32-gemm-1x8-minmax-avx-broadcast.c
   src/f32-gemm/gen/f32-gemm-3x16-minmax-avx-broadcast.c
   src/f32-gemm/gen/f32-gemm-4x8-minmax-avx-broadcast.c
   src/f32-gemm/gen/f32-gemm-4x16-minmax-avx-broadcast.c
-  src/f32-gemm/gen/f32-gemm-5x8-minmax-avx-broadcast.c
   src/f32-gemm/gen/f32-gemm-6x8-minmax-avx-broadcast.c
   src/f32-gemm/gen/f32-gemm-6x16-minmax-avx-broadcast.c
   src/f32-gemm/gen/f32-gemm-7x8-minmax-avx-broadcast.c
@@ -158,11 +163,9 @@ SET(NON_PROD_AVX_MICROKERNEL_SRCS
   src/f32-gemminc/gen/f32-gemminc-6x8-minmax-avx-broadcast.c
   src/f32-gemminc/gen/f32-gemminc-6x16-minmax-avx-broadcast.c
   src/f32-gemminc/gen/f32-gemminc-7x8-minmax-avx-broadcast.c
-  src/f32-igemm/gen/f32-igemm-1x8-minmax-avx-broadcast.c
   src/f32-igemm/gen/f32-igemm-3x16-minmax-avx-broadcast.c
   src/f32-igemm/gen/f32-igemm-4x8-minmax-avx-broadcast.c
   src/f32-igemm/gen/f32-igemm-4x16-minmax-avx-broadcast.c
-  src/f32-igemm/gen/f32-igemm-5x8-minmax-avx-broadcast.c
   src/f32-igemm/gen/f32-igemm-6x8-minmax-avx-broadcast.c
   src/f32-igemm/gen/f32-igemm-6x16-minmax-avx-broadcast.c
   src/f32-igemm/gen/f32-igemm-7x8-minmax-avx-broadcast.c
@@ -227,20 +230,14 @@ SET(NON_PROD_AVX_MICROKERNEL_SRCS
   src/f32-velu/gen/f32-velu-avx-rr2-lut4-p4-perm-u8.c
   src/f32-velu/gen/f32-velu-avx-rr2-lut4-p4-perm-u16.c
   src/f32-velu/gen/f32-velu-avx-rr2-lut4-p4-perm-u24.c
-  src/f32-velu/gen/f32-velu-avx-rr2-lut4-p4-perm-u40.c
-  src/f32-velu/gen/f32-velu-avx-rr2-lut4-p4-perm-u48.c
   src/f32-velu/gen/f32-velu-avx-rr2-lut16-p3-u8.c
   src/f32-velu/gen/f32-velu-avx-rr2-lut16-p3-u16.c
   src/f32-velu/gen/f32-velu-avx-rr2-lut16-p3-u24.c
   src/f32-velu/gen/f32-velu-avx-rr2-lut16-p3-u32.c
-  src/f32-velu/gen/f32-velu-avx-rr2-lut16-p3-u40.c
-  src/f32-velu/gen/f32-velu-avx-rr2-lut16-p3-u48.c
   src/f32-velu/gen/f32-velu-avx-rr2-p6-u8.c
   src/f32-velu/gen/f32-velu-avx-rr2-p6-u16.c
   src/f32-velu/gen/f32-velu-avx-rr2-p6-u24.c
   src/f32-velu/gen/f32-velu-avx-rr2-p6-u32.c
-  src/f32-velu/gen/f32-velu-avx-rr2-p6-u40.c
-  src/f32-velu/gen/f32-velu-avx-rr2-p6-u48.c
   src/f32-vhswish/gen/f32-vhswish-avx-u8.c
   src/f32-vlrelu/gen/f32-vlrelu-avx-u8.c
   src/f32-vrelu/gen/f32-vrelu-avx-u8.c
@@ -255,21 +252,9 @@ SET(NON_PROD_AVX_MICROKERNEL_SRCS
   src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-div-u16.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-div-u24.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-div-u32.c
-  src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-div-u40.c
-  src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-div-u48.c
-  src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-div-u56.c
-  src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-div-u64.c
-  src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-div-u72.c
-  src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-div-u80.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-nr2-u8.c
-  src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-nr2-u16.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-nr2-u24.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-nr2-u32.c
-  src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-nr2-u48.c
-  src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-nr2-u56.c
-  src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-nr2-u64.c
-  src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-nr2-u72.c
-  src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-nr2-u80.c
   src/f32-vsqrt/gen/f32-vsqrt-avx-rsqrt-u8.c
   src/f32-vsqrt/gen/f32-vsqrt-avx-rsqrt-u32.c
   src/f32-vsqrt/gen/f32-vsqrt-avx-sqrt-u8.c
@@ -474,15 +459,12 @@ SET(NON_PROD_AVX_MICROKERNEL_SRCS
   src/x32-packw/gen/x32-packw-x8-gemm-gio-avx-u1-prfm.c
   src/x32-packw/gen/x32-packw-x8-gemm-gio-avx-u1.c
   src/x32-packw/gen/x32-packw-x8-gemm-gio-avx-u8-prfm.c
-  src/x32-packw/gen/x32-packw-x8-gemm-gio-avx-u8.c
   src/x32-packw/gen/x32-packw-x8-gemm-goi-avx-u4-prfm.c
-  src/x32-packw/gen/x32-packw-x8-gemm-goi-avx-u4.c
   src/x32-packw/gen/x32-packw-x8s4-gemm-goi-avx-u4-prfm.c
   src/x32-packw/gen/x32-packw-x8s4-gemm-goi-avx-u4.c
   src/x32-packw/gen/x32-packw-x16-gemm-gio-avx-u1-prfm.c
   src/x32-packw/gen/x32-packw-x16-gemm-gio-avx-u1.c
   src/x32-packw/gen/x32-packw-x16-gemm-gio-avx-u8-prfm.c
-  src/x32-packw/gen/x32-packw-x16-gemm-gio-avx-u8.c
   src/x32-packw/gen/x32-packw-x16-gemm-goi-avx-u4-prfm.c
   src/x32-packw/gen/x32-packw-x16s4-gemm-goi-avx-u4-prfm.c
   src/x32-packw/gen/x32-packw-x32-gemm-gio-avx-u1-prfm.c

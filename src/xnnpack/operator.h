@@ -41,6 +41,9 @@ struct xnn_ukernel_dwconv {
     xnn_dwconv_unipass_ukernel_fn unipass_fn;
     xnn_dwconv_multipass_ukernel_fn multipass_fn;
   };
+  uint8_t channel_round;
+  uint8_t channel_subtile;
+  uint8_t channel_tile;
   uint8_t primary_tile;
   uint8_t middle_tile;
   uint8_t last_tile;
@@ -63,6 +66,7 @@ struct xnn_ukernel_gemm {
   xnn_packw_gemm_goi_ukernel_fn packw_gemm_goi;
   xnn_packw_gemm_gio_ukernel_fn packw_gemm_gio;
   uint8_t mr;
+  uint8_t mr_packed;
   uint8_t nr;
   uint8_t kr;
   uint8_t sr;
@@ -86,6 +90,7 @@ struct xnn_ukernel_spmm {
 struct xnn_ukernel_vmulcaddc {
   xnn_vmulcaddc_ukernel_fn function;
   uint8_t mr;
+  uint8_t channel_tile;
 };
 
 struct xnn_ukernel_vbinary {
@@ -213,8 +218,9 @@ struct xnn_operator {
       uint32_t log2_element_size;
     } binary_elementwise;
     struct {
-      uint32_t log2_input_size;
-      uint32_t log2_output_size;
+      uint8_t num_nonbatch_dims;
+      uint8_t log2_input_size;
+      uint8_t log2_output_size;
     } unary_elementwise;
     struct {
       uint32_t log2_data_element_size;
@@ -255,6 +261,7 @@ struct xnn_operator {
   // but params need to be swapped for commutative ops with per-operand params.
   union {
     union xnn_binary_uparams binary;
+    union xnn_unary_uparams unary;
     struct xnn_f16_default_params f16_default;
     union xnn_f32_minmax_params f32_minmax;
     struct xnn_f32_default_params f32_default;
@@ -281,8 +288,6 @@ struct xnn_operator {
       const struct xnn_reduce_config* rdsum_config;
       const struct xnn_reduce_config* rsum_config;
       const struct xnn_unary_elementwise_config* cvt_config;
-      const struct xnn_unary_elementwise_config* s32_f32_cvt_config;
-      const struct xnn_unary_elementwise_config* u32_f32_cvt_config;
     };
     const struct xnn_ibilinear_chw_config* ibilinear_chw_config;
     const struct xnn_ibilinear_config* ibilinear_config;
@@ -311,7 +316,10 @@ struct xnn_operator {
     const struct xnn_binary_elementwise_config* binary_elementwise_config;
     struct {
       const struct xnn_unary_elementwise_config* unary_elementwise_config;
-      const struct xnn_reduce_config* rminmax_config;  // For dynamic quantization convert operator.
+      const struct xnn_reduce_config*
+          rminmax_config;  // For dynamic quantization convert operator.
+      const struct xnn_gemm_config*
+          gemm_config;  // For dynamic quantization convert operator.
     };  // For unary elementwise operators.
     struct {
       const struct xnn_rmax_config* rmax_config;
@@ -329,7 +337,6 @@ struct xnn_operator {
   union {
     struct argmax_pooling_context argmax_pooling;
     struct average_pooling_context average_pooling;
-    struct channel_shuffle_context channel_shuffle;
     struct conv2d_context conv2d;
     struct dwconv2d_context dwconv2d;
     struct {
@@ -377,7 +384,7 @@ struct xnn_operator {
     struct unpooling_context unpooling;
     struct vmulcaddc_context vmulcaddc;
     struct rope_context rope;
-    struct x32_pack_lh_context x32_pack_lh;
+    struct pack_lh_context pack_lh;
   } context;
 
   struct xnn_code_cache* code_cache;

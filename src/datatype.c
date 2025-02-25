@@ -16,14 +16,17 @@ bool xnn_datatype_is_real(enum xnn_datatype t) {
     case xnn_datatype_fp16:
     case xnn_datatype_bf16:
     case xnn_datatype_qint8:
+    case xnn_datatype_pqint8:
     case xnn_datatype_quint8:
     case xnn_datatype_qint32:
     case xnn_datatype_qcint8:
     case xnn_datatype_qcint32:
     case xnn_datatype_qcint4:
     case xnn_datatype_qdint8:
+    case xnn_datatype_qduint8:
     case xnn_datatype_qpint8:
     case xnn_datatype_qbint4:
+    case xnn_datatype_pfp16:
     case xnn_datatype_pfp32:
       return true;
   }
@@ -38,14 +41,17 @@ bool xnn_datatype_is_integral(enum xnn_datatype t) {
     case xnn_datatype_fp16:
     case xnn_datatype_bf16:
     case xnn_datatype_qint8:
+    case xnn_datatype_pqint8:
     case xnn_datatype_quint8:
     case xnn_datatype_qint32:
     case xnn_datatype_qcint8:
     case xnn_datatype_qcint32:
     case xnn_datatype_qcint4:
     case xnn_datatype_qdint8:
+    case xnn_datatype_qduint8:
     case xnn_datatype_qpint8:
     case xnn_datatype_qbint4:
+    case xnn_datatype_pfp16:
     case xnn_datatype_pfp32:
       return false;
     case xnn_datatype_int32:
@@ -58,12 +64,14 @@ bool xnn_datatype_is_integral(enum xnn_datatype t) {
 bool xnn_datatype_is_quantized(enum xnn_datatype t) {
   switch (t) {
     case xnn_datatype_qint8:
+    case xnn_datatype_pqint8:
     case xnn_datatype_quint8:
     case xnn_datatype_qint32:
     case xnn_datatype_qcint8:
     case xnn_datatype_qcint32:
     case xnn_datatype_qcint4:
     case xnn_datatype_qdint8:
+    case xnn_datatype_qduint8:
     case xnn_datatype_qpint8:
     case xnn_datatype_qbint4:
       return true;
@@ -72,6 +80,7 @@ bool xnn_datatype_is_quantized(enum xnn_datatype t) {
     case xnn_datatype_fp16:
     case xnn_datatype_bf16:
     case xnn_datatype_int32:
+    case xnn_datatype_pfp16:
     case xnn_datatype_pfp32:
       return false;
   }
@@ -88,13 +97,16 @@ size_t xnn_datatype_log2_size_bits(enum xnn_datatype t) {
     case xnn_datatype_qbint4:
       return 2;
     case xnn_datatype_qint8:
+    case xnn_datatype_pqint8:
     case xnn_datatype_quint8:
     case xnn_datatype_qcint8:
     case xnn_datatype_qdint8:
+    case xnn_datatype_qduint8:
     case xnn_datatype_qpint8:
       return 3;
     case xnn_datatype_fp16:
     case xnn_datatype_bf16:
+    case xnn_datatype_pfp16:
       return 4;
     case xnn_datatype_qint32:
     case xnn_datatype_qcint32:
@@ -126,17 +138,20 @@ bool xnn_datatype_is_byte_addressable(enum xnn_datatype t) {
     case xnn_datatype_invalid:
     case xnn_datatype_qcint4:
     case xnn_datatype_qbint4:
+    case xnn_datatype_pfp16:
     case xnn_datatype_pfp32:
     case xnn_datatype_qpint8:
       return false;
     case xnn_datatype_fp16:
     case xnn_datatype_bf16:
     case xnn_datatype_qint8:
+    case xnn_datatype_pqint8:
     case xnn_datatype_quint8:
     case xnn_datatype_qint32:
     case xnn_datatype_qcint8:
     case xnn_datatype_qcint32:
     case xnn_datatype_qdint8:
+    case xnn_datatype_qduint8:
     case xnn_datatype_int32:
     case xnn_datatype_fp32:
       return true;

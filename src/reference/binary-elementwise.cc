@@ -13,6 +13,7 @@
 
 #include "xnnpack.h"
 #include "xnnpack/config-types.h"
+#include "xnnpack/datatype.h"
 #include "xnnpack/math.h"
 #include "xnnpack/microfnptr.h"
 #include "xnnpack/microparams.h"
@@ -36,7 +37,7 @@ void binary_ukernel_unquantized(size_t batch_size_bytes, const T* a, const T* b,
   const size_t batch_size = batch_size_bytes / sizeof(T);
   Operator op;
   for (size_t i = 0; i < batch_size; ++i) {
-    output[i] = op(a[i], b[i]);
+    output[i] = static_cast<T>(op(a[i], b[i]));
   }
 }
 
@@ -48,7 +49,7 @@ void binaryc_ukernel_unquantized(size_t batch_size_bytes, const T* a,
   const T b_0 = *b;
   Operator op;
   for (size_t i = 0; i < batch_size; ++i) {
-    output[i] = op(a[i], b_0);
+    output[i] = static_cast<T>(op(a[i], b_0));
   }
 }
 
@@ -60,13 +61,13 @@ void rbinaryc_ukernel_unquantized(size_t batch_size_bytes, const T* a,
   const T b_0 = *b;
   Operator op;
   for (size_t i = 0; i < batch_size; ++i) {
-    output[i] = op(b_0, a[i]);
+    output[i] = static_cast<T>(op(b_0, a[i]));
   }
 }
 
 template <typename Operator, typename T>
 const xnn_binary_elementwise_config* get_config(T) {
-  static_assert(!xnnpack::is_quantized<T>::value);
+  static_assert(!xnnpack::is_quantized<T>::value, "");
   static xnn_binary_elementwise_config config = {
       (xnn_vbinary_ukernel_fn)binary_ukernel_unquantized<T, Operator>,
       (xnn_vbinary_ukernel_fn)binaryc_ukernel_unquantized<T, Operator>,

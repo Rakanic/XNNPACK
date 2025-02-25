@@ -25,11 +25,14 @@
 #include "xnnpack/buffer.h"
 #include "xnnpack/cache.h"
 #include "xnnpack/common.h"
+#include "xnnpack/config.h"
 #include "xnnpack/math.h"
 #include "xnnpack/microparams.h"
 #include "convolution-test-helpers.h"
 #include "replicable_random_device.h"
 #include "pthreadpool.h"
+
+constexpr int kIterations = 1;
 
 class ConvolutionOperatorTester {
  public:
@@ -540,15 +543,6 @@ class ConvolutionOperatorTester {
     return multithreaded() ? 5 : 1;
   }
 
-  ConvolutionOperatorTester& iterations(size_t iterations) {
-    this->iterations_ = iterations;
-    return *this;
-  }
-
-  size_t iterations() const {
-    return this->iterations_;
-  }
-
   ConvolutionOperatorTester& use_weights_cache(bool use_weights_cache) {
     this->use_weights_cache_ = use_weights_cache;
     return *this;
@@ -580,7 +574,7 @@ class ConvolutionOperatorTester {
     const int8_t input_zero_point = -1;
     const int8_t output_zero_point = -1;
 
-    for (size_t iteration = 0; iteration < iterations(); iteration++) {
+    for (size_t iteration = 0; iteration < kIterations; iteration++) {
       std::unique_ptr<pthreadpool, decltype(&pthreadpool_destroy)> auto_threadpool{nullptr, pthreadpool_destroy};
       if (multithreaded()) {
         const pthreadpool_t threadpool = pthreadpool_create(num_threads());
@@ -829,7 +823,7 @@ class ConvolutionOperatorTester {
                 << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
               EXPECT_GE(int32_t(output[((i * output_height() + y) * output_width() + x) * output_channel_stride() + g * group_output_channels() + c]), int32_t(qmin() - 0x80))
                 << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
-              EXPECT_NEAR(
+              ASSERT_NEAR(
                   output_ref[(((i * output_height() + y) * output_width() + x) * groups() + g) * group_output_channels() + c],
                   double(output[((i * output_height() + y) * output_width() + x) * output_channel_stride() + g * group_output_channels() + c]),
                   0.9)
@@ -874,7 +868,7 @@ class ConvolutionOperatorTester {
     xnnpack::Buffer<xnn_qd8_quantization_params> quantization_params(batch_size());
     xnnpack::Buffer<float> kernel_scale(groups() * group_output_channels());
 
-    for (size_t iteration = 0; iteration < iterations(); iteration++) {
+    for (size_t iteration = 0; iteration < kIterations; iteration++) {
       std::unique_ptr<pthreadpool, decltype(&pthreadpool_destroy)>
           auto_threadpool{nullptr, pthreadpool_destroy};
       if (multithreaded()) {
@@ -1027,7 +1021,7 @@ class ConvolutionOperatorTester {
         std::unique_ptr<xnn_operator, decltype(&xnn_delete_operator)>
             auto_convolution_op(convolution_op2, xnn_delete_operator);
 
-        xnnpack::Buffer<xnn_float16> output2(output.size(), UINT16_C(0xDEAD));
+        xnnpack::Buffer<xnn_float16> output2(output.size());
         size_t workspace_size = SIZE_MAX;
         size_t workspace_alignment = SIZE_MAX;
         ASSERT_EQ(xnn_status_success,
@@ -1097,7 +1091,7 @@ class ConvolutionOperatorTester {
     xnnpack::Buffer<xnn_qd8_quantization_params> quantization_params(batch_size());
     xnnpack::Buffer<float> kernel_scale(groups() * group_output_channels());
 
-    for (size_t iteration = 0; iteration < iterations(); iteration++) {
+    for (size_t iteration = 0; iteration < kIterations; iteration++) {
       std::unique_ptr<pthreadpool, decltype(&pthreadpool_destroy)>
           auto_threadpool{nullptr, pthreadpool_destroy};
       if (multithreaded()) {
@@ -1306,7 +1300,7 @@ class ConvolutionOperatorTester {
 
     const int8_t input_zero_point = -1;
 
-    for (size_t iteration = 0; iteration < iterations(); iteration++) {
+    for (size_t iteration = 0; iteration < kIterations; iteration++) {
       std::unique_ptr<pthreadpool, decltype(&pthreadpool_destroy)> auto_threadpool{nullptr, pthreadpool_destroy};
       if (multithreaded()) {
         const pthreadpool_t threadpool = pthreadpool_create(num_threads());
@@ -1540,7 +1534,7 @@ class ConvolutionOperatorTester {
                 << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
               EXPECT_GE(int32_t(output[((i * output_height() + y) * output_width() + x) * output_channel_stride() + g * group_output_channels() + c]), int32_t(qmin() - 0x80))
                 << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
-              EXPECT_NEAR(
+              ASSERT_NEAR(
                   output_ref[(((i * output_height() + y) * output_width() + x) * groups() + g) * group_output_channels() + c],
                   double(output[((i * output_height() + y) * output_width() + x) * output_channel_stride() + g * group_output_channels() + c]) - double(output_zero_point),
                   0.9)
@@ -1571,7 +1565,7 @@ class ConvolutionOperatorTester {
     const uint8_t input_zero_point = 127;
     const uint8_t kernel_zero_point = 127;
 
-    for (size_t iteration = 0; iteration < iterations(); iteration++) {
+    for (size_t iteration = 0; iteration < kIterations; iteration++) {
       std::unique_ptr<pthreadpool, decltype(&pthreadpool_destroy)> auto_threadpool{nullptr, pthreadpool_destroy};
       if (multithreaded()) {
         const pthreadpool_t threadpool = pthreadpool_create(num_threads());
@@ -1826,7 +1820,7 @@ class ConvolutionOperatorTester {
                 << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
               EXPECT_GE(int32_t(output[((i * output_height() + y) * output_width() + x) * output_channel_stride() + g * group_output_channels() + c]), int32_t(qmin()))
                 << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
-              EXPECT_NEAR(
+              ASSERT_NEAR(
                   output_ref[(((i * output_height() + y) * output_width() + x) * groups() + g) * group_output_channels() + c],
                   double(output[((i * output_height() + y) * output_width() + x) * output_channel_stride() + g * group_output_channels() + c]) - double(output_zero_point),
                   0.9)
@@ -1851,7 +1845,7 @@ class ConvolutionOperatorTester {
     xnnpack::Buffer<float> output(batch_size() * ((output_height() * output_width() - 1) * output_channel_stride() + groups() * group_output_channels()));
     xnnpack::Buffer<float> output_ref(batch_size() * output_height() * output_width() * groups() * group_output_channels());
 
-    for (size_t iteration = 0; iteration < iterations(); iteration++) {
+    for (size_t iteration = 0; iteration < kIterations; iteration++) {
       std::unique_ptr<pthreadpool, decltype(&pthreadpool_destroy)> auto_threadpool{nullptr, pthreadpool_destroy};
       if (multithreaded()) {
         const pthreadpool_t threadpool = pthreadpool_create(num_threads());
@@ -2096,7 +2090,7 @@ class ConvolutionOperatorTester {
                   << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
               EXPECT_LE(output[((i * output_height() + y) * output_width() + x) * output_channel_stride() + g * group_output_channels() + c], output_max)
                   << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
-              EXPECT_NEAR(
+              ASSERT_NEAR(
                   output_ref[(((i * output_height() + y) * output_width() + x) * groups() + g) * group_output_channels() + c],
                   output[((i * output_height() + y) * output_width() + x) * output_channel_stride() + g * group_output_channels() + c],
                   tolerance) << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
@@ -2129,7 +2123,7 @@ class ConvolutionOperatorTester {
     xnnpack::Buffer<xnn_float16> output(batch_size() * ((output_height() * output_width() - 1) * output_channel_stride() + groups() * group_output_channels()));
     xnnpack::Buffer<float> output_ref(batch_size() * output_height() * output_width() * groups() * group_output_channels());
 
-    for (size_t iteration = 0; iteration < iterations(); iteration++) {
+    for (size_t iteration = 0; iteration < kIterations; iteration++) {
       std::unique_ptr<pthreadpool, decltype(&pthreadpool_destroy)> auto_threadpool{nullptr, pthreadpool_destroy};
       if (multithreaded()) {
         const pthreadpool_t threadpool = pthreadpool_create(num_threads());
@@ -2394,7 +2388,7 @@ class ConvolutionOperatorTester {
                 << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
               EXPECT_LE(output[((i * oh + y) * ow + x) * output_channel_stride() + g * group_output_channels() + c], output_max)
                 << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
-              EXPECT_NEAR(output_ref[(((i * oh + y) * ow + x) * groups() + g) * group_output_channels() + c], output[((i * oh + y) * ow + x) * output_channel_stride() + g * group_output_channels() + c], tolerance)
+              ASSERT_NEAR(output_ref[(((i * oh + y) * ow + x) * groups() + g) * group_output_channels() + c], output[((i * oh + y) * ow + x) * output_channel_stride() + g * group_output_channels() + c], tolerance)
                << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
             }
           }
@@ -2419,7 +2413,7 @@ class ConvolutionOperatorTester {
       ((batch_size() - 1) * output_channel_stride() + groups() * group_output_channels()) * output_height() * output_width());
     xnnpack::Buffer<float> output_ref(batch_size() * groups() * group_output_channels() * output_height() * output_width());
 
-    for (size_t iteration = 0; iteration < iterations(); iteration++) {
+    for (size_t iteration = 0; iteration < kIterations; iteration++) {
       std::unique_ptr<pthreadpool, decltype(&pthreadpool_destroy)> auto_threadpool{nullptr, pthreadpool_destroy};
       if (multithreaded()) {
         const pthreadpool_t threadpool = pthreadpool_create(num_threads());
@@ -2652,7 +2646,7 @@ class ConvolutionOperatorTester {
                 << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c << ", image = " << i;
               EXPECT_LE(output[((i * output_channel_stride() + g * group_output_channels() + c) * output_height() + y) * output_width() + x], output_max)
                 << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c << ", image = " << i;
-              EXPECT_NEAR(
+              ASSERT_NEAR(
                   output_ref[(((i * groups() + g) * group_output_channels() + c) * output_height() + y) * output_width() + x],
                   output[((i * output_channel_stride() + g * group_output_channels() + c) * output_height() + y) * output_width() + x],
                   1.0e-4 * std::abs(output_ref[(((i * groups() + g) * group_output_channels() + c) * output_height() + y) * output_width() + x]))
@@ -2689,7 +2683,7 @@ class ConvolutionOperatorTester {
       ((batch_size() - 1) * output_channel_stride() + groups() * group_output_channels()) * output_height() * output_width());
     xnnpack::Buffer<float> output_ref(batch_size() * groups() * group_output_channels() * output_height() * output_width());
 
-    for (size_t iteration = 0; iteration < iterations(); iteration++) {
+    for (size_t iteration = 0; iteration < kIterations; iteration++) {
       std::unique_ptr<pthreadpool, decltype(&pthreadpool_destroy)> auto_threadpool{nullptr, pthreadpool_destroy};
       if (multithreaded()) {
         const pthreadpool_t threadpool = pthreadpool_create(num_threads());
@@ -2942,7 +2936,7 @@ class ConvolutionOperatorTester {
                 << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c << ", image = " << i;
               EXPECT_LE(output[((i * output_channel_stride() + g * group_output_channels() + c) * output_height() + y) * output_width() + x], output_max)
                 << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c << ", image = " << i;
-              EXPECT_NEAR(output_ref[(((i * groups() + g) * group_output_channels() + c) * output_height() + y) * output_width() + x], output[((i * output_channel_stride() + g * group_output_channels() + c) * output_height() + y) * output_width() + x], std::max(1.0e-4f, std::abs(output_ref[(((i * groups() + g) * group_output_channels() + c) * output_height() + y) * output_width() + x]) * 1.0e-2f))
+              ASSERT_NEAR(output_ref[(((i * groups() + g) * group_output_channels() + c) * output_height() + y) * output_width() + x], output[((i * output_channel_stride() + g * group_output_channels() + c) * output_height() + y) * output_width() + x], std::max(1.0e-4f, std::abs(output_ref[(((i * groups() + g) * group_output_channels() + c) * output_height() + y) * output_width() + x]) * 1.0e-2f))
                 << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c << ", image = " << i;
             }
           }
@@ -2981,7 +2975,7 @@ class ConvolutionOperatorTester {
     const int8_t input_zero_point = -1;
     const int8_t output_zero_point = -1;
 
-    for (size_t iteration = 0; iteration < iterations(); iteration++) {
+    for (size_t iteration = 0; iteration < kIterations; iteration++) {
       std::unique_ptr<pthreadpool, decltype(&pthreadpool_destroy)> auto_threadpool{nullptr, pthreadpool_destroy};
       if (multithreaded()) {
         const pthreadpool_t threadpool = pthreadpool_create(num_threads());
@@ -3123,7 +3117,7 @@ class ConvolutionOperatorTester {
                   << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
                 EXPECT_GE(int32_t(output[((i * output_height() + y) * output_width() + x) * output_channel_stride() + g * group_output_channels() + c]), int32_t(qmin() - 0x80))
                   << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
-                EXPECT_NEAR(
+                ASSERT_NEAR(
                     output_ref[(((i * output_height() + y) * output_width() + x) * groups() + g) * group_output_channels() + c],
                     double(output[((i * output_height() + y) * output_width() + x) * output_channel_stride() + g * group_output_channels() + c]),
                     0.9)
@@ -3214,7 +3208,7 @@ class ConvolutionOperatorTester {
                   << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
                 EXPECT_GE(int32_t(output[((i * next_output_height() + y) * next_output_width() + x) * output_channel_stride() + g * group_output_channels() + c]), int32_t(qmin() - 0x80))
                   << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
-                EXPECT_NEAR(
+                ASSERT_NEAR(
                     next_output_ref[(((i * next_output_height() + y) * next_output_width() + x) * groups() + g) * group_output_channels() + c],
                     double(output[((i * next_output_height() + y) * next_output_width() + x) * output_channel_stride() + g * group_output_channels() + c]),
                     0.9)
@@ -3254,7 +3248,7 @@ class ConvolutionOperatorTester {
 
     const int8_t input_zero_point = -1;
 
-    for (size_t iteration = 0; iteration < iterations(); iteration++) {
+    for (size_t iteration = 0; iteration < kIterations; iteration++) {
       std::unique_ptr<pthreadpool, decltype(&pthreadpool_destroy)> auto_threadpool{nullptr, pthreadpool_destroy};
       if (multithreaded()) {
         const pthreadpool_t threadpool = pthreadpool_create(num_threads());
@@ -3376,7 +3370,7 @@ class ConvolutionOperatorTester {
                   << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
                 EXPECT_GE(int32_t(output[((i * output_height() + y) * output_width() + x) * output_channel_stride() + g * group_output_channels() + c]), int32_t(qmin() - 0x80))
                   << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
-                EXPECT_NEAR(
+                ASSERT_NEAR(
                     output_ref[(((i * output_height() + y) * output_width() + x) * groups() + g) * group_output_channels() + c],
                     double(output[((i * output_height() + y) * output_width() + x) * output_channel_stride() + g * group_output_channels() + c]) - double(output_zero_point),
                     0.9)
@@ -3461,7 +3455,7 @@ class ConvolutionOperatorTester {
                   << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
                 EXPECT_GE(int32_t(output[((i * next_output_height() + y) * next_output_width() + x) * output_channel_stride() + g * group_output_channels() + c]), int32_t(qmin() - 0x80))
                   << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
-                EXPECT_NEAR(
+                ASSERT_NEAR(
                     next_output_ref[(((i * next_output_height() + y) * next_output_width() + x) * groups() + g) * group_output_channels() + c],
                     double(output[((i * next_output_height() + y) * next_output_width() + x) * output_channel_stride() + g * group_output_channels() + c]) - double(output_zero_point),
                     0.9)
@@ -3500,7 +3494,7 @@ class ConvolutionOperatorTester {
     const uint8_t input_zero_point = 127;
     const uint8_t kernel_zero_point = 127;
 
-    for (size_t iteration = 0; iteration < iterations(); iteration++) {
+    for (size_t iteration = 0; iteration < kIterations; iteration++) {
       std::unique_ptr<pthreadpool, decltype(&pthreadpool_destroy)> auto_threadpool{nullptr, pthreadpool_destroy};
       if (multithreaded()) {
         const pthreadpool_t threadpool = pthreadpool_create(num_threads());
@@ -3623,7 +3617,7 @@ class ConvolutionOperatorTester {
                   << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
                 EXPECT_GE(int32_t(output[((i * output_height() + y) * output_width() + x) * output_channel_stride() + g * group_output_channels() + c]), int32_t(qmin()))
                   << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
-                EXPECT_NEAR(
+                ASSERT_NEAR(
                     output_ref[(((i * output_height() + y) * output_width() + x) * groups() + g) * group_output_channels() + c],
                     double(output[((i * output_height() + y) * output_width() + x) * output_channel_stride() + g * group_output_channels() + c]) - double(output_zero_point),
                     0.9)
@@ -3708,7 +3702,7 @@ class ConvolutionOperatorTester {
                   << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
                 EXPECT_GE(int32_t(output[((i * next_output_height() + y) * next_output_width() + x) * output_channel_stride() + g * group_output_channels() + c]), int32_t(qmin()))
                   << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
-                EXPECT_NEAR(
+                ASSERT_NEAR(
                     next_output_ref[(((i * next_output_height() + y) * next_output_width() + x) * groups() + g) * group_output_channels() + c],
                     double(output[((i * next_output_height() + y) * next_output_width() + x) * output_channel_stride() + g * group_output_channels() + c]) - double(output_zero_point),
                     0.9)
@@ -3740,7 +3734,7 @@ class ConvolutionOperatorTester {
     xnnpack::Buffer<float> output_ref(batch_size() * output_height() * output_width() * groups() * group_output_channels());
     xnnpack::Buffer<float> next_output_ref(next_batch_size() * next_output_height() * next_output_width() * groups() * group_output_channels());
 
-    for (size_t iteration = 0; iteration < iterations(); iteration++) {
+    for (size_t iteration = 0; iteration < kIterations; iteration++) {
       std::unique_ptr<pthreadpool, decltype(&pthreadpool_destroy)> auto_threadpool{nullptr, pthreadpool_destroy};
       if (multithreaded()) {
         const pthreadpool_t threadpool = pthreadpool_create(num_threads());
@@ -3939,7 +3933,7 @@ class ConvolutionOperatorTester {
     xnnpack::Buffer<float> output_ref(batch_size() * output_height() * output_width() * groups() * group_output_channels());
     xnnpack::Buffer<float> next_output_ref(next_batch_size() * next_output_height() * next_output_width() * groups() * group_output_channels());
 
-    for (size_t iteration = 0; iteration < iterations(); iteration++) {
+    for (size_t iteration = 0; iteration < kIterations; iteration++) {
       std::unique_ptr<pthreadpool, decltype(&pthreadpool_destroy)> auto_threadpool{nullptr, pthreadpool_destroy};
       if (multithreaded()) {
         const pthreadpool_t threadpool = pthreadpool_create(num_threads());
@@ -4057,7 +4051,7 @@ class ConvolutionOperatorTester {
                   << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
                 EXPECT_LE(output[((i * output_height() + y) * output_width() + x) * output_channel_stride() + g * group_output_channels() + c], output_max)
                   << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
-                EXPECT_NEAR(
+                ASSERT_NEAR(
                     output_ref[(((i * output_height() + y) * output_width() + x) * groups() + g) * group_output_channels() + c],
                     output[((i * output_height() + y) * output_width() + x) * output_channel_stride() + g * group_output_channels() + c],
                     1.0e-4 * std::abs(output_ref[(((i * output_height() + y) * output_width() + x) * groups() + g) * group_output_channels() + c]))
@@ -4141,7 +4135,7 @@ class ConvolutionOperatorTester {
                   << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
                 EXPECT_LE(output[((i * next_output_height() + y) * next_output_width() + x) * output_channel_stride() + g * group_output_channels() + c], output_max)
                   << "(x, y) = (" << x << ", " << y << "), group = " << g << ", channel = " << c;
-                EXPECT_NEAR(
+                ASSERT_NEAR(
                     next_output_ref[(((i * next_output_height() + y) * next_output_width() + x) * groups() + g) * group_output_channels() + c],
                     output[((i * next_output_height() + y) * next_output_width() + x) * output_channel_stride() + g * group_output_channels() + c],
                     1.0e-4 * std::abs(next_output_ref[(((i * next_output_height() + y) * next_output_width() + x) * groups() + g) * group_output_channels() + c]))

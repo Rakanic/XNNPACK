@@ -9,6 +9,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "xnnpack/hardware-config.h"
 #include "xnnpack/microfnptr.h"
 
 #ifdef __cplusplus
@@ -97,8 +98,9 @@ struct xnn_avgpool_config {
 };
 
 struct xnn_pack_lh_config {
-  xnn_x32_pack_lh_ukernel_fn ukernel;
-  xnn_x32_pack_lh_size_fn size_fn;
+  xnn_pack_lh_ukernel_fn ukernel;
+  xnn_pack_lh_size_fn size_fn;
+  xnn_pack_lh_offset_fn offset_fn;
 };
 
 struct xnn_pavgpool_config {
@@ -159,6 +161,9 @@ struct xnn_ibilinear_config {
   // Number of output pixels in a tile.
   // For best efficiency, micro-kernel must process a multiple of this number of pixels in each call.
   uint8_t pixel_tile;
+  size_t log2_data_element_size;
+  size_t log2_weight_element_size;
+  xnn_indirection_init_resize_bilinear2d_hwc_fn indirection_init;
 };
 
 // Bilinear interpolation (2D) in CHW layout.
@@ -168,6 +173,9 @@ struct xnn_ibilinear_chw_config {
   // Number of channels in a tile.
   // For best efficiency, micro-kernel must process a multiple of this number of channels in each call.
   uint8_t channel_tile;
+  size_t log2_data_element_size;
+  size_t log2_weight_element_size;
+  xnn_indirection_init_resize_bilinear2d_chw_fn indirection_init;
 };
 
 struct xnn_gemm_config {
@@ -203,6 +211,7 @@ struct xnn_gemm_config {
   uint8_t log2_sr;
   uint8_t planes;  // number of 4 bit planes (1 for legacy, 2 for unzip)
   uint8_t mr_packed;  // `mr` value used for packed left-hand operands.
+  enum xnn_arch_flags arch;
 };
 
 struct xnn_maxpool_config {

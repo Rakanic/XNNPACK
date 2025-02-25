@@ -28,6 +28,7 @@
 #include "xnnpack/subgraph.h"
 #include "replicable_random_device.h"
 #include "unary-ops.h"
+#include "runtime-flags.h"
 
 struct Param {
   using UnaryT = std::tuple<xnn_unary_operator, xnn_datatype>;
@@ -82,7 +83,8 @@ TEST_P(UnaryTest, matches_operator_api) {
   std::generate(dims.begin(), dims.end(), [&]() { return dim_dist(rng_); });
 
   size_t size =
-      std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>());
+      std::accumulate(dims.begin(), dims.end(), static_cast<size_t>(1),
+                      std::multiplies<size_t>());
   size_t channels = dims.empty() ? 1 : dims.back();
   size_t batch_size = size / channels;
 
@@ -152,7 +154,7 @@ TEST_P(UnaryTest, matches_operator_api) {
   ASSERT_EQ(xnn_status_success,
             xnn_define_unary(subgraph, unary_operator, &params, input_id,
                              output_id, /*flags=*/0));
-  ASSERT_EQ(xnn_status_success, xnn_create_runtime_v3(subgraph, nullptr, nullptr, /*flags=*/0, &runtime));
+  ASSERT_EQ(xnn_status_success, xnn_create_runtime_v3(subgraph, nullptr, nullptr, xnn_test_runtime_flags(), &runtime));
   ASSERT_NE(nullptr, runtime);
   std::unique_ptr<xnn_runtime, decltype(&xnn_delete_runtime)> auto_runtime(runtime, xnn_delete_runtime);
   std::array<xnn_external_value, 2> external = {
@@ -250,7 +252,7 @@ TEST(AbsTest, reshape) {
   ASSERT_EQ(node->flags, 0);
 
   xnn_runtime_t runtime = nullptr;
-  ASSERT_EQ(xnn_status_success, xnn_create_runtime_v3(subgraph, nullptr, nullptr, /*flags=*/0, &runtime));
+  ASSERT_EQ(xnn_status_success, xnn_create_runtime_v3(subgraph, nullptr, nullptr, xnn_test_runtime_flags(), &runtime));
   ASSERT_NE(nullptr, runtime);
   std::unique_ptr<xnn_runtime, decltype(&xnn_delete_runtime)> auto_runtime(runtime, xnn_delete_runtime);
 

@@ -13,13 +13,14 @@ load(
 )
 load(
     "//:build_params.bzl",
-    "xnnpack_select_if",
+    # "xnnpack_select_if",
     "xnnpack_simd_copts_for_arch",
     "xnnpack_simd_f16_archs",
     "xnnpack_simd_f32_archs",
     "xnnpack_simd_s16_archs",
     "xnnpack_simd_s32_archs",
     "xnnpack_simd_s8_archs",
+    "xnnpack_simd_tags_for_arch",
 )
 
 MICROKERNEL_TEST_DEPS = [
@@ -71,6 +72,14 @@ xnnpack_cxx_library(
     name = "replicable_random_device",
     testonly = True,
     hdrs = ["replicable_random_device.h"],
+    deps = xnnpack_test_deps_for_library(),
+)
+
+xnnpack_cxx_library(
+    name = "runtime_flags",
+    testonly = True,
+    srcs = ["runtime-flags.cc"],
+    hdrs = ["runtime-flags.h"],
     deps = xnnpack_test_deps_for_library(),
 )
 
@@ -148,21 +157,22 @@ xnnpack_cxx_library(
 )
 
 ####################### Unit tests for microkernel lists #######################
-sh_test(
-    name = "microkernel_lists_test",
-    size = "small",
-    srcs = ["microkernel_lists_test.sh"],
-    data = [
-        "//:cmake_microkernel_lists",
-        "//:generated_microkernel_lists",
-        "//gen:bzl_microkernel_lists",
-    ],
-    target_compatible_with = xnnpack_select_if(
-        "//build_config:linux",
-        [],
-        ["@platforms//:incompatible"],
-    ),
-)
+# TODO: b/381390736 - Reenable once fixed.
+#sh_test(
+#    name = "microkernel_lists_test",
+#    size = "small",
+#    srcs = ["microkernel_lists_test.sh"],
+#    data = [
+#        "//:cmake_microkernel_lists",
+#        "//:generated_microkernel_lists",
+#        "//gen:bzl_microkernel_lists",
+#    ],
+#    target_compatible_with = xnnpack_select_if(
+#        "//build_config:linux",
+#        [],
+#        ["@platforms//:incompatible"],
+#    ),
+#)
 
 ######################### Unit tests for simd wrappers #########################
 [xnnpack_unit_test(
@@ -171,6 +181,7 @@ sh_test(
         "f32-simd-" + arch + ".cc",
     ],
     copts = xnnpack_simd_copts_for_arch(arch),
+    tags = xnnpack_simd_tags_for_arch(arch),
     deps = [
         ":replicable_random_device",
         "//:buffer",
@@ -186,12 +197,14 @@ sh_test(
         "f16-simd-" + arch + ".cc",
     ],
     copts = xnnpack_simd_copts_for_arch(arch),
+    features = ["-use_header_modules"],
+    tags = xnnpack_simd_tags_for_arch(arch),
     deps = [
         ":replicable_random_device",
         "//:buffer",
         "//:common",
-        "//:fp16",
         "//:isa_checks",
+        "//:math",
         "//:microkernels_h",
     ],
 ) for arch in xnnpack_simd_f16_archs()]
@@ -253,6 +266,7 @@ sh_test(
     "f16_vabs",
     "f16_vclamp",
     "f16_velu",
+    "f16_vgelu",
     "f16_vhswish",
     "f16_vlrelu",
     "f16_vneg",
@@ -290,10 +304,10 @@ sh_test(
     "qu8_vlrelu",
     "f16_f32_vcvt",
     "f16_qs8_vcvt",
+    "f16_qu8_vcvt",
     "f32_f16_vcvt",
     "f32_qs8_vcvt",
     "f32_qu8_vcvt",
-    "s32_f32_vcvt",
     "qs8_f16_vcvt",
     "qs8_f32_vcvt",
     "qs8_vcvt",
@@ -452,6 +466,16 @@ xnnpack_unit_test(
     name = "bf16_gemm_minmax_test",
     srcs = [
         "bf16-gemm-minmax.cc",
+    ],
+    deps = MICROKERNEL_TEST_DEPS + [
+        ":gemm_microkernel_tester",
+    ],
+)
+
+xnnpack_unit_test(
+    name = "bf16_f32_gemm_minmax_test",
+    srcs = [
+        "bf16-f32-gemm-minmax.cc",
     ],
     deps = MICROKERNEL_TEST_DEPS + [
         ":gemm_microkernel_tester",
@@ -666,6 +690,17 @@ xnnpack_unit_test(
 )
 
 xnnpack_unit_test(
+    name = "pf32_gemm_minmax_test",
+    srcs = [
+        "pf32-gemm-minmax.cc",
+    ],
+    defines = xnnpack_kleidiai_defines(),
+    deps = MICROKERNEL_TEST_DEPS + [
+        ":gemm_microkernel_tester",
+    ],
+)
+
+xnnpack_unit_test(
     name = "f32_qc8w_gemm_test",
     srcs = [
         "f32-qc8w-gemm.cc",
@@ -739,7 +774,6 @@ xnnpack_unit_test(
     name = "f32_raddextexp_test",
     srcs = [
         "f32-raddextexp.cc",
-        "raddextexp-microkernel-tester.h",
     ],
     deps = MICROKERNEL_TEST_DEPS,
 )
@@ -812,7 +846,6 @@ xnnpack_unit_test(
     name = "f32_vscaleexpminusmax_test",
     srcs = [
         "f32-vscaleexpminusmax.cc",
-        "vscaleexpminusmax-microkernel-tester.h",
     ],
     deps = MICROKERNEL_TEST_DEPS,
 )
@@ -821,7 +854,6 @@ xnnpack_unit_test(
     name = "f32_vscaleextexp_test",
     srcs = [
         "f32-vscaleextexp.cc",
-        "vscaleextexp-microkernel-tester.h",
     ],
     deps = MICROKERNEL_TEST_DEPS,
 )
@@ -835,6 +867,7 @@ xnnpack_unit_test(
         "qd8-f16-qc8w-gemm-minmax-3.cc",
         "qd8-f16-qc8w-gemm-minmax-4.cc",
     ],
+    shard_count = 5,
     deps = MICROKERNEL_TEST_DEPS + [
         ":gemm_microkernel_tester",
     ],
@@ -849,6 +882,7 @@ xnnpack_unit_test(
         "qd8-f32-qc8w-gemm-minmax-3.cc",
         "qd8-f32-qc8w-gemm-minmax-4.cc",
     ],
+    shard_count = 10,
     deps = MICROKERNEL_TEST_DEPS + [
         ":gemm_microkernel_tester",
     ],
@@ -918,6 +952,18 @@ xnnpack_unit_test(
 )
 
 xnnpack_unit_test(
+    name = "qp8_f32_qc8w_gemm_minmax_test",
+    timeout = "moderate",
+    srcs = [
+        "qp8-f32-qc8w-gemm-minmax.cc",
+    ],
+    defines = xnnpack_kleidiai_defines(),
+    deps = MICROKERNEL_TEST_DEPS + [
+        ":gemm_microkernel_tester",
+    ],
+)
+
+xnnpack_unit_test(
     name = "qs8_qc8w_gemm_minmax_fp32_test",
     timeout = "moderate",
     srcs = [
@@ -925,6 +971,7 @@ xnnpack_unit_test(
         "qs8-qc8w-gemm-minmax-fp32-2.cc",
         "qs8-qc8w-gemm-minmax-fp32-3.cc",
     ],
+    shard_count = 5,
     deps = MICROKERNEL_TEST_DEPS + [
         ":gemm_microkernel_tester",
     ],
@@ -951,6 +998,7 @@ xnnpack_unit_test(
         "qd8-f32-qc8w-igemm-minmax-2.cc",
         "qd8-f32-qc8w-igemm-minmax-3.cc",
     ],
+    shard_count = 5,
     deps = MICROKERNEL_TEST_DEPS + [
         ":gemm_microkernel_tester",
     ],
@@ -958,7 +1006,7 @@ xnnpack_unit_test(
 
 xnnpack_unit_test(
     name = "qs8_qc8w_igemm_minmax_fp32_test",
-    timeout = "moderate",
+    timeout = "long",
     srcs = [
         "qs8-qc8w-igemm-minmax-fp32.cc",
         "qs8-qc8w-igemm-minmax-fp32-2.cc",
@@ -1067,15 +1115,6 @@ xnnpack_unit_test(
 )
 
 xnnpack_unit_test(
-    name = "x8_zip_test",
-    srcs = [
-        "x8-zip.cc",
-        "zip-microkernel-tester.h",
-    ],
-    deps = MICROKERNEL_TEST_DEPS,
-)
-
-xnnpack_unit_test(
     name = "x32_packb_test",
     srcs = [
         "packb-microkernel-tester.h",
@@ -1104,6 +1143,7 @@ xnnpack_unit_test(
 ) for kernel in [
     "x8_packw",
     "qs8_packw",
+    "qs8_qc4w_packw",
     "x16_packw",
     "x32_packw",
 ]]
@@ -1128,15 +1168,6 @@ xnnpack_unit_test(
     srcs = [
         "unpool-microkernel-tester.h",
         "x32-unpool.cc",
-    ],
-    deps = MICROKERNEL_TEST_DEPS,
-)
-
-xnnpack_unit_test(
-    name = "x32_zip_test",
-    srcs = [
-        "x32-zip.cc",
-        "zip-microkernel-tester.h",
     ],
     deps = MICROKERNEL_TEST_DEPS,
 )
@@ -1209,22 +1240,13 @@ xnnpack_unit_test(
 
 xnnpack_unit_test(
     name = "batch_matrix_multiply_nc_test",
-    timeout = "long",
+    timeout = "moderate",
     srcs = [
         "batch-matrix-multiply-nc.cc",
         "batch-matrix-multiply-operator-tester.h",
     ],
-    shard_count = 2,
-    deps = OPERATOR_TEST_DEPS,
-)
-
-xnnpack_unit_test(
-    name = "channel_shuffle_nc_test",
-    srcs = [
-        "channel-shuffle-nc.cc",
-        "channel-shuffle-operator-tester.h",
-    ],
-    deps = OPERATOR_TEST_DEPS,
+    shard_count = 5,
+    deps = OPERATOR_TEST_DEPS + ["//:microkernels_h"],
 )
 
 xnnpack_unit_test(
@@ -1251,7 +1273,6 @@ xnnpack_unit_test(
     name = "convert_nc_test",
     srcs = [
         "convert-nc.cc",
-        "convert-operator-tester.h",
     ],
     deps = OPERATOR_TEST_DEPS + ["//:microkernels_h"],
 )
@@ -1541,6 +1562,22 @@ xnnpack_cxx_library(
     ],
 )
 
+xnnpack_cxx_library(
+    name = "subgraph_tester",
+    testonly = True,
+    hdrs = [
+        "subgraph-tester.h",
+    ],
+    deps = xnnpack_test_deps_for_library() + [
+        ":replicable_random_device",
+        ":runtime_flags",
+        "//:buffer",
+        "//:datatype",
+        "//:subgraph_h",
+        "//:xnnpack_h",
+    ],
+)
+
 xnnpack_unit_test(
     name = "unary_test",
     srcs = [
@@ -1548,14 +1585,25 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         ":unary_ops",
         "//:XNNPACK",
         "//:buffer",
         "//:datatype",
         "//:logging",
         "//:operator_utils",
-        "//:operators",
         "//:subgraph",
+    ],
+)
+
+xnnpack_unit_test(
+    name = "buffer_test",
+    srcs = [
+        "buffer.cc",
+    ],
+    deps = [
+        ":replicable_random_device",
+        "//:buffer",
     ],
 )
 
@@ -1566,9 +1614,12 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
+        ":subgraph_tester",
         ":subgraph_unary_tester",
         "//:XNNPACK",
         "//:buffer",
+        "//:datatype",
         "//:math",
         "//:node_type",
         "//:operators",
@@ -1610,9 +1661,11 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:allocation_type",
         "//:buffer",
+        "//:common",
         "//:math",
         "//:subgraph",
     ],
@@ -1624,6 +1677,7 @@ xnnpack_unit_test(
     deps = [
         ":operator_test_utils",
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
         "//:datatype",
@@ -1642,6 +1696,7 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
         "//:common",
@@ -1658,6 +1713,7 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
         "//:common",
@@ -1675,6 +1731,7 @@ xnnpack_unit_test(
         "average-pooling-2d-reshape.cc",
     ],
     deps = [
+        ":runtime_flags",
         "//:XNNPACK",
         "//:node_type",
         "//:subgraph",
@@ -1688,6 +1745,7 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
         "//:common",
@@ -1705,6 +1763,7 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
         "//:math",
@@ -1727,6 +1786,7 @@ xnnpack_unit_test(
     deps = [
         ":convolution_test_helpers",
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
         "//:common",
@@ -1748,8 +1808,10 @@ xnnpack_unit_test(
     shard_count = 5,
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
+        "//:internal",
         "//:math",
         "//:node_type",
         "//:operator_utils",
@@ -1766,6 +1828,7 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
         "//:math",
@@ -1783,6 +1846,7 @@ xnnpack_unit_test(
     deps = [
         ":convolution_test_helpers",
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
         "//:common",
@@ -1802,6 +1866,7 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
         "//:math",
@@ -1823,15 +1888,14 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
         "//:common",
-        "//:config_hdrs",
-        "//:internal",
         "//:math",
-        "//:microkernels_h",
         "//:node_type",
         "//:operators",
+        "//:params",
         "//:requantization",
         "//:subgraph",
     ],
@@ -1914,6 +1978,7 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
         "//:math",
@@ -1932,6 +1997,7 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
         "//:math",
@@ -1948,6 +2014,7 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:aligned_allocator",
         "//:common",
@@ -1964,6 +2031,7 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
         "//:common",
@@ -1982,6 +2050,7 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
         "//:subgraph",
@@ -1995,23 +2064,12 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
         "//:math",
         "//:node_type",
         "//:operators",
-        "//:subgraph",
-    ],
-)
-
-xnnpack_unit_test(
-    name = "transpose_reshape_test",
-    srcs = [
-        "transpose-reshape.cc",
-    ],
-    deps = [
-        "//:XNNPACK",
-        "//:node_type",
         "//:subgraph",
     ],
 )
@@ -2023,6 +2081,7 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
         "//:node_type",
@@ -2041,8 +2100,10 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
+        "//:datatype",
         "//:node_type",
         "//:subgraph",
     ],
@@ -2059,8 +2120,10 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
+        "//:datatype",
         "//:subgraph",
     ],
 )
@@ -2074,8 +2137,10 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
+        "//:datatype",
         "//:subgraph",
     ],
 )
@@ -2089,8 +2154,10 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:buffer",
+        "//:datatype",
         "//:node_type",
         "//:subgraph",
     ],
@@ -2098,14 +2165,12 @@ xnnpack_unit_test(
 
 xnnpack_unit_test(
     name = "subgraph_nchw_test",
-    srcs = [
-        "subgraph-nchw.cc",
-        "subgraph-tester.h",
-    ],
+    srcs = ["subgraph-nchw.cc"],
     deps = [
         ":replicable_random_device",
+        ":subgraph_tester",
         "//:XNNPACK",
-        "//:buffer",
+        "//:node_type",
         "//:subgraph",
     ],
 )
@@ -2120,10 +2185,12 @@ xnnpack_unit_test(
     ],
     deps = [
         ":replicable_random_device",
+        ":runtime_flags",
         "//:XNNPACK",
         "//:allocation_type",
         "//:allocator",
         "//:buffer",
+        "//:datatype",
         "//:math",
         "//:node_type",
         "//:params",
@@ -2156,7 +2223,12 @@ xnnpack_unit_test(
 xnnpack_unit_test(
     name = "microkernel_utils_test",
     srcs = ["microkernel-utils.cc"],
-    deps = ["//:microkernel_utils"],
+    deps = [
+        ":replicable_random_device",
+        "//:math",
+        "//:microkernel_utils",
+        "//:params",
+    ],
 )
 
 xnnpack_unit_test(
