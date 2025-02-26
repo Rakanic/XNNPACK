@@ -26,7 +26,7 @@ void xnn_f32_rmin_ukernel__scalar_u1(
 
   const float* i = input;
 
-  float vmin0 = output[0];
+  float vmin0 = *i;
   do {
     const float vt = *i++;
     vmin0 = math_min_f32(vmin0, vt);

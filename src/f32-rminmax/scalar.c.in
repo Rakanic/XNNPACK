@@ -45,14 +45,14 @@ void xnn_${DATATYPE.lower()}_r${OP.lower()}_ukernel__${ISA}_u${BATCH_TILE}${ACC_
 
   $if DATATYPE == "F32":
     $if EMIT_MIN:
-      float vmin0 = output[0];
+      float vmin0 = *i;
     $if EMIT_MAX:
-      float vmax0 = output[${MAX_POS}];
+      float vmax0 = *i;
   $elif DATATYPE == "F16":
     $if EMIT_MIN:
-      float vmin0 = fp16_ieee_to_fp32_value(o[0]);
+      float vmin0 = fp16_ieee_to_fp32_value(*i);
     $if EMIT_MAX:
-      float vmax0 = fp16_ieee_to_fp32_value(o[${MAX_POS}]);
+      float vmax0 = fp16_ieee_to_fp32_value(*i);
   $for A in range(1, ACCUMULATORS):
     $if EMIT_MIN:
       float vmin${A} = vmin0;

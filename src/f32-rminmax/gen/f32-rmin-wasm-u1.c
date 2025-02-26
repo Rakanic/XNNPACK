@@ -25,7 +25,7 @@ void xnn_f32_rmin_ukernel__wasm_u1(
 
   const float* i = input;
 
-  float vmin0 = output[0];
+  float vmin0 = *i;
   do {
     const float vt = *i++;
     vmin0 = __builtin_wasm_min_f32(vmin0, vt);

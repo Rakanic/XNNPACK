@@ -12,15 +12,12 @@
 SET(PROD_AVX512F_MICROKERNEL_SRCS
   src/f32-dwconv/gen/f32-dwconv-3p16c-minmax-avx512f.c
   src/f32-dwconv/gen/f32-dwconv-4p16c-minmax-avx512f.c
+  src/f32-dwconv/gen/f32-dwconv-5f5m5l32c16s1r-minmax-avx512f.c
   src/f32-dwconv/gen/f32-dwconv-9p16c-minmax-avx512f.c
   src/f32-dwconv/gen/f32-dwconv-25p16c-minmax-avx512f.c
-  src/f32-gemm/gen/f32-gemm-1x16-minmax-avx512f-broadcast.c
   src/f32-gemm/gen/f32-gemm-1x32-minmax-avx512f-broadcast.c
-  src/f32-gemm/gen/f32-gemm-7x16-minmax-avx512f-broadcast.c
   src/f32-gemm/gen/f32-gemm-7x32-minmax-avx512f-broadcast.c
-  src/f32-igemm/gen/f32-igemm-1x16-minmax-avx512f-broadcast.c
   src/f32-igemm/gen/f32-igemm-1x32-minmax-avx512f-broadcast.c
-  src/f32-igemm/gen/f32-igemm-7x16-minmax-avx512f-broadcast.c
   src/f32-igemm/gen/f32-igemm-7x32-minmax-avx512f-broadcast.c
   src/f32-raddstoreexpminusmax/gen/f32-raddstoreexpminusmax-avx512f-rr2-p5-u64-acc2.c
   src/f32-rdsum/gen/f32-rdsum-7p7x-minmax-avx512f-c64.c
@@ -51,7 +48,7 @@ SET(PROD_AVX512F_MICROKERNEL_SRCS
   src/f32-vcopysign/gen/f32-vcopysign-avx512f.c
   src/f32-vcopysign/gen/f32-vcopysignc-avx512f.c
   src/f32-vcopysign/gen/f32-vrcopysignc-avx512f.c
-  src/f32-velu/gen/f32-velu-avx512f-rr1-p6-u64.c
+  src/f32-velu/gen/f32-velu-avx512f-rr1-p6-u128.c
   src/f32-vgelu/gen/f32-vgelu-avx512f-rational-12-10-nr.c
   src/f32-vhswish/gen/f32-vhswish-avx512f-u16.c
   src/f32-vlog/gen/f32-vlog-avx512f-rational-3-3-div.c
@@ -67,8 +64,7 @@ SET(PROD_AVX512F_MICROKERNEL_SRCS
   src/f32-vunary/gen/f32-vabs-avx512f.c
   src/f32-vunary/gen/f32-vneg-avx512f.c
   src/f32-vunary/gen/f32-vsqr-avx512f.c
-  src/x32-packw/gen/x32-packw-x16-gemm-gio-avx512f-u8.c
-  src/x32-packw/gen/x32-packw-x16-gemm-goi-avx512f-u4-prfm.c
+  src/s32-f32-vcvt/gen/s32-f32-vcvt-avx512f.c
   src/x32-packw/gen/x32-packw-x32-gemm-gio-avx512f-u8.c
   src/x32-packw/gen/x32-packw-x32-gemm-goi-avx512f-u4-prfm.c)
 
@@ -82,13 +78,13 @@ SET(NON_PROD_AVX512F_MICROKERNEL_SRCS
   src/f32-dwconv/gen/f32-dwconv-5f5m5l16c16s1r-minmax-avx512f-acc2.c
   src/f32-dwconv/gen/f32-dwconv-5f5m5l16c16s1r-minmax-avx512f.c
   src/f32-dwconv/gen/f32-dwconv-5f5m5l32c16s1r-minmax-avx512f-acc2.c
-  src/f32-dwconv/gen/f32-dwconv-5f5m5l32c16s1r-minmax-avx512f.c
   src/f32-dwconv/gen/f32-dwconv-9p16c-minmax-avx512f-acc2.c
   src/f32-dwconv/gen/f32-dwconv-9p32c-minmax-avx512f-acc2.c
   src/f32-dwconv/gen/f32-dwconv-9p32c-minmax-avx512f.c
   src/f32-dwconv/gen/f32-dwconv-25p16c-minmax-avx512f-acc2.c
   src/f32-dwconv/gen/f32-dwconv-25p32c-minmax-avx512f-acc2.c
   src/f32-dwconv/gen/f32-dwconv-25p32c-minmax-avx512f.c
+  src/f32-gemm/gen/f32-gemm-1x16-minmax-avx512f-broadcast.c
   src/f32-gemm/gen/f32-gemm-1x64-minmax-avx512f-broadcast.c
   src/f32-gemm/gen/f32-gemm-4x16-minmax-avx512f-broadcast.c
   src/f32-gemm/gen/f32-gemm-4x32-minmax-avx512f-broadcast.c
@@ -99,6 +95,7 @@ SET(NON_PROD_AVX512F_MICROKERNEL_SRCS
   src/f32-gemm/gen/f32-gemm-6x16-minmax-avx512f-broadcast.c
   src/f32-gemm/gen/f32-gemm-6x32-minmax-avx512f-broadcast.c
   src/f32-gemm/gen/f32-gemm-6x64-minmax-avx512f-broadcast.c
+  src/f32-gemm/gen/f32-gemm-7x16-minmax-avx512f-broadcast.c
   src/f32-gemm/gen/f32-gemm-7x64-minmax-avx512f-broadcast.c
   src/f32-gemm/gen/f32-gemm-8x16-minmax-avx512f-broadcast.c
   src/f32-gemm/gen/f32-gemm-8x32-minmax-avx512f-broadcast.c
@@ -133,12 +130,14 @@ SET(NON_PROD_AVX512F_MICROKERNEL_SRCS
   src/f32-gemminc/gen/f32-gemminc-6x16-minmax-avx512f-broadcast.c
   src/f32-gemminc/gen/f32-gemminc-7x16-minmax-avx512f-broadcast.c
   src/f32-gemminc/gen/f32-gemminc-8x16-minmax-avx512f-broadcast.c
+  src/f32-igemm/gen/f32-igemm-1x16-minmax-avx512f-broadcast.c
   src/f32-igemm/gen/f32-igemm-4x16-minmax-avx512f-broadcast.c
   src/f32-igemm/gen/f32-igemm-4x32-minmax-avx512f-broadcast.c
   src/f32-igemm/gen/f32-igemm-5x16-minmax-avx512f-broadcast.c
   src/f32-igemm/gen/f32-igemm-5x32-minmax-avx512f-broadcast.c
   src/f32-igemm/gen/f32-igemm-6x16-minmax-avx512f-broadcast.c
   src/f32-igemm/gen/f32-igemm-6x32-minmax-avx512f-broadcast.c
+  src/f32-igemm/gen/f32-igemm-7x16-minmax-avx512f-broadcast.c
   src/f32-igemm/gen/f32-igemm-8x16-minmax-avx512f-broadcast.c
   src/f32-igemm/gen/f32-igemm-8x32-minmax-avx512f-broadcast.c
   src/f32-raddexpminusmax/gen/f32-raddexpminusmax-avx512f-p5-scalef-u64-acc2.c
@@ -225,9 +224,17 @@ SET(NON_PROD_AVX512F_MICROKERNEL_SRCS
   src/f32-velu/gen/f32-velu-avx512f-rr1-lut16-p3-perm-u32.c
   src/f32-velu/gen/f32-velu-avx512f-rr1-lut16-p3-perm-u48.c
   src/f32-velu/gen/f32-velu-avx512f-rr1-lut16-p3-perm-u64.c
+  src/f32-velu/gen/f32-velu-avx512f-rr1-lut16-p3-perm-u80.c
+  src/f32-velu/gen/f32-velu-avx512f-rr1-lut16-p3-perm-u96.c
+  src/f32-velu/gen/f32-velu-avx512f-rr1-lut16-p3-perm-u112.c
+  src/f32-velu/gen/f32-velu-avx512f-rr1-lut16-p3-perm-u128.c
   src/f32-velu/gen/f32-velu-avx512f-rr1-p6-u16.c
   src/f32-velu/gen/f32-velu-avx512f-rr1-p6-u32.c
   src/f32-velu/gen/f32-velu-avx512f-rr1-p6-u48.c
+  src/f32-velu/gen/f32-velu-avx512f-rr1-p6-u64.c
+  src/f32-velu/gen/f32-velu-avx512f-rr1-p6-u80.c
+  src/f32-velu/gen/f32-velu-avx512f-rr1-p6-u96.c
+  src/f32-velu/gen/f32-velu-avx512f-rr1-p6-u112.c
   src/f32-vgelu/gen/f32-vgelu-avx512f-rational-12-10-div.c
   src/f32-vhswish/gen/f32-vhswish-avx512f-u32.c
   src/f32-vlog/gen/f32-vlog-avx512f-rational-3-3-nr.c
@@ -244,39 +251,81 @@ SET(NON_PROD_AVX512F_MICROKERNEL_SRCS
   src/f32-vscaleexpminusmax/gen/f32-vscaleexpminusmax-avx512f-p5-scalef-u32.c
   src/f32-vscaleexpminusmax/gen/f32-vscaleexpminusmax-avx512f-p5-scalef-u48.c
   src/f32-vscaleexpminusmax/gen/f32-vscaleexpminusmax-avx512f-p5-scalef-u64.c
+  src/f32-vscaleexpminusmax/gen/f32-vscaleexpminusmax-avx512f-p5-scalef-u80.c
+  src/f32-vscaleexpminusmax/gen/f32-vscaleexpminusmax-avx512f-p5-scalef-u96.c
+  src/f32-vscaleexpminusmax/gen/f32-vscaleexpminusmax-avx512f-p5-scalef-u112.c
+  src/f32-vscaleexpminusmax/gen/f32-vscaleexpminusmax-avx512f-p5-scalef-u128.c
+  src/f32-vscaleexpminusmax/gen/f32-vscaleexpminusmax-avx512f-p5-scalef-u144.c
+  src/f32-vscaleexpminusmax/gen/f32-vscaleexpminusmax-avx512f-p5-scalef-u160.c
+  src/f32-vscaleexpminusmax/gen/f32-vscaleexpminusmax-avx512f-p5-scalef-u176.c
+  src/f32-vscaleexpminusmax/gen/f32-vscaleexpminusmax-avx512f-p5-scalef-u192.c
   src/f32-vscaleextexp/gen/f32-vscaleextexp-avx512f-p5-scalef-u16.c
   src/f32-vscaleextexp/gen/f32-vscaleextexp-avx512f-p5-scalef-u32.c
   src/f32-vscaleextexp/gen/f32-vscaleextexp-avx512f-p5-scalef-u48.c
   src/f32-vscaleextexp/gen/f32-vscaleextexp-avx512f-p5-scalef-u64.c
+  src/f32-vscaleextexp/gen/f32-vscaleextexp-avx512f-p5-scalef-u80.c
+  src/f32-vscaleextexp/gen/f32-vscaleextexp-avx512f-p5-scalef-u96.c
+  src/f32-vscaleextexp/gen/f32-vscaleextexp-avx512f-p5-scalef-u112.c
+  src/f32-vscaleextexp/gen/f32-vscaleextexp-avx512f-p5-scalef-u128.c
+  src/f32-vscaleextexp/gen/f32-vscaleextexp-avx512f-p5-scalef-u144.c
+  src/f32-vscaleextexp/gen/f32-vscaleextexp-avx512f-p5-scalef-u160.c
+  src/f32-vscaleextexp/gen/f32-vscaleextexp-avx512f-p5-scalef-u176.c
+  src/f32-vscaleextexp/gen/f32-vscaleextexp-avx512f-p5-scalef-u192.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-lut16-p3-perm-scalef-div-u16.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-lut16-p3-perm-scalef-div-u32.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-lut16-p3-perm-scalef-div-u48.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-lut16-p3-perm-scalef-div-u64.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-lut16-p3-perm-scalef-div-u80.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-lut16-p3-perm-scalef-div-u96.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-lut16-p3-perm-scalef-div-u112.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-lut16-p3-perm-scalef-div-u128.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-lut16-p3-perm-scalef-nr1fma-u16.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-lut16-p3-perm-scalef-nr1fma-u32.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-lut16-p3-perm-scalef-nr1fma-u48.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-lut16-p3-perm-scalef-nr1fma-u64.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-lut16-p3-perm-scalef-nr1fma-u80.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-lut16-p3-perm-scalef-nr1fma-u96.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-lut16-p3-perm-scalef-nr1fma-u112.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-lut16-p3-perm-scalef-nr1fma-u128.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-p5-scalef-div-u16.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-p5-scalef-div-u32.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-p5-scalef-div-u48.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-p5-scalef-div-u64.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-p5-scalef-div-u80.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-p5-scalef-div-u96.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-p5-scalef-div-u112.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-p5-scalef-div-u128.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-p5-scalef-nr1fma-u16.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-p5-scalef-nr1fma-u32.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-p5-scalef-nr1fma-u48.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-p5-scalef-nr1fma-u64.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-p5-scalef-nr1fma-u80.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-p5-scalef-nr1fma-u96.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-p5-scalef-nr1fma-u112.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr1-p5-scalef-nr1fma-u128.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr2-lut32-p2-perm2-scalef-div-u16.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr2-lut32-p2-perm2-scalef-div-u32.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr2-lut32-p2-perm2-scalef-div-u48.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr2-lut32-p2-perm2-scalef-div-u80.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr2-lut32-p2-perm2-scalef-div-u96.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr2-lut32-p2-perm2-scalef-div-u112.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr2-lut32-p2-perm2-scalef-div-u128.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr2-lut32-p2-perm2-scalef-nr1fma-u16.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr2-lut32-p2-perm2-scalef-nr1fma-u32.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr2-lut32-p2-perm2-scalef-nr1fma-u48.c
   src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr2-lut32-p2-perm2-scalef-nr1fma-u64.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr2-lut32-p2-perm2-scalef-nr1fma-u80.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr2-lut32-p2-perm2-scalef-nr1fma-u96.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr2-lut32-p2-perm2-scalef-nr1fma-u112.c
+  src/f32-vsigmoid/gen/f32-vsigmoid-avx512f-rr2-lut32-p2-perm2-scalef-nr1fma-u128.c
   src/f32-vsqrt/gen/f32-vsqrt-avx512f-rsqrt-u32.c
   src/f32-vsqrt/gen/f32-vsqrt-avx512f-rsqrt-u48.c
   src/f32-vtanh/gen/f32-vtanh-avx512f-rational-9-8-div.c
   src/x32-packw/gen/x32-packw-x16-gemm-gio-avx512f-u1-prfm.c
   src/x32-packw/gen/x32-packw-x16-gemm-gio-avx512f-u1.c
   src/x32-packw/gen/x32-packw-x16-gemm-gio-avx512f-u8-prfm.c
+  src/x32-packw/gen/x32-packw-x16-gemm-gio-avx512f-u8.c
+  src/x32-packw/gen/x32-packw-x16-gemm-goi-avx512f-u4-prfm.c
   src/x32-packw/gen/x32-packw-x16-gemm-goi-avx512f-u4.c
   src/x32-packw/gen/x32-packw-x32-gemm-gio-avx512f-u1-prfm.c
   src/x32-packw/gen/x32-packw-x32-gemm-gio-avx512f-u1.c

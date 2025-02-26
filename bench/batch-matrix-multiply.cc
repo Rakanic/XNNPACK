@@ -7,8 +7,6 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
-#include <cstring>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -48,13 +46,17 @@ void xnnpack_batch_matrix_multiply_f32(benchmark::State& state,
   const size_t input1_elements = batch_size * m * k;
   const size_t input2_elements = batch_size * k * n;
   const size_t output_elements = batch_size * m * n;
+  const size_t num_buffers =
+      1 + benchmark::utils::DivideRoundUp<size_t>(
+              benchmark::utils::GetMaxCacheSize(),
+              sizeof(float) *
+                  (output_elements + input1_elements + input2_elements));
 
-  xnnpack::Buffer<float> input1(input1_elements +
-                                XNN_EXTRA_BYTES / sizeof(float));
+  xnnpack::Buffer<float> input1(num_buffers * input1_elements);
   std::generate(input1.begin(), input1.end(), std::ref(f32rng));
-  xnnpack::Buffer<float> input2(input2_elements);
+  xnnpack::Buffer<float> input2(num_buffers * input2_elements);
   std::generate(input2.begin(), input2.end(), std::ref(f32rng));
-  xnnpack::Buffer<float> output(output_elements);
+  xnnpack::Buffer<float> output(output_elements * num_buffers);
 
   xnn_status status = xnn_initialize(nullptr /* allocator */);
   if (status != xnn_status_success) {
@@ -81,32 +83,31 @@ void xnnpack_batch_matrix_multiply_f32(benchmark::State& state,
       /*batch_dims_b=*/&batch_size, m, k, n, &workspace_size,
       &workspace_alignment, threadpool);
 
+  auto workspace =
+      std::make_unique<xnnpack::Buffer<char>>(num_buffers * workspace_size);
+
   if (status != xnn_status_success) {
-    state.SkipWithError("failed to reshape FP32 BatchMatrixMultiply operator");
+    state.SkipWithError("failed to create FP32 BatchMatrixMultiply operator");
     return;
   }
 
-  status = xnn_setup_batch_matrix_multiply_nc_f32(
-      op, /*workspace=*/nullptr, input1.data(),
-      /*input_b=*/nullptr, output.data());
+  size_t buffer_index = 0;
 
-  if (status != xnn_status_success) {
-    state.SkipWithError("failed to setup FP32 BatchMatrixMultiply operator");
-    return;
-  }
+  for (auto _ : state) {
+    state.PauseTiming();
+    buffer_index = (buffer_index + 1) % num_buffers;
+    status = xnn_setup_batch_matrix_multiply_nc_f32(
+        op, workspace->data() + buffer_index * workspace_size,
+        input1.data() + buffer_index * input1_elements,
+        input2.data() + buffer_index * input2_elements,
+        output.data() + output_elements * buffer_index);
+    state.ResumeTiming();
 
-  int num_iters = FLAGS_benchmark_min_iters;
-  while (state.KeepRunningBatch(num_iters)) {
-    for (int iter = 0; iter < num_iters; iter++) {
-      benchmark::utils::WipePthreadpoolL2Caches(state, threadpool);
-
-      status = xnn_run_operator(op, threadpool);
-      if (status != xnn_status_success) {
-        state.SkipWithError("failed to run FP32 BatchMatrixMultiply operator");
-        return;
-      }
+    status = xnn_run_operator(op, threadpool);
+    if (status != xnn_status_success) {
+      state.SkipWithError("failed to run FP32 BatchMatrixMultiply operator");
+      return;
     }
-    num_iters = 1;
   }
 
   status = xnn_delete_operator(op);
@@ -148,13 +149,17 @@ void xnnpack_batch_matrix_multiply_qd8_f32_qc8w(benchmark::State& state,
   const size_t input1_elements = batch_size * m * k;
   const size_t input2_elements = batch_size * k * n;
   const size_t output_elements = batch_size * m * n;
+  const size_t num_buffers =
+      1 + benchmark::utils::DivideRoundUp<size_t>(
+              benchmark::utils::GetMaxCacheSize(),
+              sizeof(float) *
+                  (output_elements + input1_elements + input2_elements));
 
-  xnnpack::Buffer<int8_t> input1(input1_elements +
-                                 XNN_EXTRA_BYTES / sizeof(int8_t));
+  xnnpack::Buffer<int8_t> input1(num_buffers * input1_elements);
   std::generate(input1.begin(), input1.end(), std::ref(q8rng));
   xnnpack::Buffer<int8_t> input2(input2_elements);
   std::generate(input2.begin(), input2.end(), std::ref(q8rng));
-  xnnpack::Buffer<float> output(output_elements);
+  xnnpack::Buffer<float> output(num_buffers * output_elements);
 
   // Allocate and fill the quantization parameters.
   xnnpack::Buffer<float> channelwise_scales(batch_size * n +
@@ -192,32 +197,26 @@ void xnnpack_batch_matrix_multiply_qd8_f32_qc8w(benchmark::State& state,
 
   if (status != xnn_status_success) {
     state.SkipWithError(
-        "failed to reshape QD8_F32_QC8W BatchMatrixMultiply operator");
+        "failed to create QD8_F32_QC8W BatchMatrixMultiply operator");
     return;
   }
 
-  status = xnn_setup_batch_matrix_multiply_nc_qd8_f32_qc8w(
-      op, input1.data(), quantization_params.data(), output.data());
+  size_t buffer_index = 0;
+  for (auto _ : state) {
+    state.PauseTiming();
+    buffer_index = (buffer_index + 1) % num_buffers;
+    status = xnn_setup_batch_matrix_multiply_nc_qd8_f32_qc8w(
+        op, input1.data() + buffer_index * input1_elements,
+        quantization_params.data(),
+        output.data() + output_elements * buffer_index);
+    state.ResumeTiming();
 
-  if (status != xnn_status_success) {
-    state.SkipWithError(
-        "failed to setup QD8_F32_QC8W BatchMatrixMultiply operator");
-    return;
-  }
-
-  int num_iters = FLAGS_benchmark_min_iters;
-  while (state.KeepRunningBatch(num_iters)) {
-    for (int iter = 0; iter < num_iters; iter++) {
-      benchmark::utils::WipePthreadpoolL2Caches(state, threadpool);
-
-      status = xnn_run_operator(op, threadpool);
-      if (status != xnn_status_success) {
-        state.SkipWithError(
-            "failed to run QD8_F32_QC8W BatchMatrixMultiply operator");
-        return;
-      }
+    status = xnn_run_operator(op, threadpool);
+    if (status != xnn_status_success) {
+      state.SkipWithError(
+          "failed to run QD8_F32_QC8W BatchMatrixMultiply operator");
+      return;
     }
-    num_iters = 1;
   }
 
   status = xnn_delete_operator(op);
@@ -353,15 +352,11 @@ void tflite_batch_matrix_multiply_f32(benchmark::State& state,
                 interpreter->typed_tensor<float>(1) + batch_size * k * n,
                 std::ref(f32rng));
 
-  int num_iters = FLAGS_benchmark_min_iters;
-  while (state.KeepRunningBatch(num_iters)) {
-    for (int iter = 0; iter < num_iters; iter++) {
-      if (interpreter->Invoke() != kTfLiteOk) {
-        state.SkipWithError("failed to invoke TFLite interpreter");
-        return;
-      }
+  for (auto _ : state) {
+    if (interpreter->Invoke() != kTfLiteOk) {
+      state.SkipWithError("failed to invoke TFLite interpreter");
+      return;
     }
-    num_iters = 1;
   }
 
   const uint64_t cpu_frequency = benchmark::utils::GetCurrentCpuFrequency();
@@ -378,5 +373,5 @@ void tflite_batch_matrix_multiply_f32(benchmark::State& state,
 #endif  // BENCHMARK_TENSORFLOW_LITE
 
 #ifndef XNNPACK_BENCHMARK_NO_MAIN
-XNN_BENCHMARK_MAIN();
+BENCHMARK_MAIN();
 #endif

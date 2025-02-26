@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
-#include <limits>
 #include <random>
 #include <vector>
 
@@ -43,7 +42,7 @@ static void f32_rminmax(
     init_params(&params);
   }
 
-  float output[2] = {-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()};
+  float output[2];
   for (auto _ : state) {
     rminmax(elements * sizeof(float), input.data(), output, &params);
   }
@@ -299,5 +298,5 @@ BENCHMARK_CAPTURE(f32_rminmax, scalar_u4_acc4,
   ->UseRealTime();
 
 #ifndef XNNPACK_BENCHMARK_NO_MAIN
-XNN_BENCHMARK_MAIN();
+BENCHMARK_MAIN();
 #endif

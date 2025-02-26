@@ -11,7 +11,6 @@
 #include "xnnpack/memory-planner.h"
 #include "xnnpack/node-type.h"
 #include "xnnpack/subgraph.h"
-#include "runtime-flags.h"
 #include "runtime-tester.h"
 #include "subgraph-tester.h"
 
@@ -213,7 +212,7 @@ TEST(MemoryPlanner, LeakyReluInPlaceAfterConv) {
         input_id, filter_id, bias_id, conv_out)
     .AddLeakyRelu(1.0f, conv_out, leaky_relu_out)
     .AddClamp(0.0f, 1.0f, leaky_relu_out, output_id);
-  tester.CreateRuntime(xnn_test_runtime_flags());
+  tester.CreateRuntime();
   tester.SetupRuntime();
 
   xnn_runtime_t runtime = tester.Runtime();
@@ -257,7 +256,7 @@ TEST(MemoryPlanner, LeakyReluWithTwoConsumersCannotBeInPlace) {
     .AddLeakyRelu(1.0f, conv_out, leaky_relu_out)
     .AddClamp(0.0f, 1.0f, leaky_relu_out, output_id)
     .AddClamp(1.0f, 2.0f, leaky_relu_out, output_id2);
-  tester.CreateRuntime(xnn_test_runtime_flags());
+  tester.CreateRuntime();
   tester.SetupRuntime();
 
   xnn_runtime_t runtime = tester.Runtime();
@@ -303,7 +302,7 @@ TEST(MemoryPlanner, HardSwishAndLeakyReluInPlaceAfterConv) {
     .AddLeakyRelu(1.0f, conv_out, leaky_relu_out)
     .AddHardSwish(leaky_relu_out, hard_swish_out)
     .AddClamp(0.0f, 1.0f, hard_swish_out, output_id);
-  tester.CreateRuntime(xnn_test_runtime_flags());
+  tester.CreateRuntime();
   tester.SetupRuntime();
 
   xnn_runtime_t runtime = tester.Runtime();
@@ -328,7 +327,7 @@ TEST(MemoryPlanner, ExternalInputsCannotBeInPlace) {
       .AddOutputTensorF32({1, 3, 3, 3}, output_id)
       .AddLeakyRelu(1.0f, input_id, leaky_relu_out)
       .AddClamp(0.0f, 1.0f, leaky_relu_out, output_id);
-  tester.CreateRuntime(xnn_test_runtime_flags());
+  tester.CreateRuntime();
   tester.SetupRuntime();
 
   xnn_runtime_t runtime = tester.Runtime();
@@ -354,7 +353,7 @@ TEST(MemoryPlanner, PersistentValuesCannotReuseInternalValues) {
       .AddClamp(0.0f, 1.0f, input_id, clamp_out_id)
       .AddLeakyRelu(1.0f, clamp_out_id, leaky_relu_out_id)
       .AddClamp(0.0f, 1.0f, leaky_relu_out_id, output_id);
-  tester.CreateRuntime(xnn_test_runtime_flags());
+  tester.CreateRuntime();
   tester.SetupRuntime();
 
   xnn_runtime_t runtime = tester.Runtime();
@@ -380,7 +379,7 @@ TEST(MemoryPlanner, CannotReuseStaticValues) {
       .AddOutputTensorF32({1, 3, 3, 3}, output_id)
       .AddClamp(0.0f, 1.0f, static_id, clamp_out_id)
       .AddLeakyRelu(1.0f, clamp_out_id, output_id);
-  tester.CreateRuntime(xnn_test_runtime_flags());
+  tester.CreateRuntime();
   tester.SetupRuntime();
 
   xnn_runtime_t runtime = tester.Runtime();
@@ -421,7 +420,7 @@ TEST(MemoryPlanner, Add2WithLHSConstantInPlace) {
         input_id, filter_id, bias_id, conv_out)
     .AddAddition(add_constant_input_id, conv_out, add_out_id)
     .AddLeakyRelu(1.0f, add_out_id, output_id);
-  tester.CreateRuntime(xnn_test_runtime_flags());
+  tester.CreateRuntime();
   tester.SetupRuntime();
   xnn_runtime_t runtime = tester.Runtime();
 
@@ -463,7 +462,7 @@ TEST(MemoryPlanner, Add2WithLHSConstant) {
         input_id, filter_id, bias_id, conv_out)
     .AddAddition(add_constant_input_id, conv_out, add_out_id)
     .AddLeakyRelu(1.0f, add_out_id, output_id);
-  tester.CreateRuntime(xnn_test_runtime_flags());
+  tester.CreateRuntime();
   tester.SetupRuntime();
   xnn_runtime_t runtime = tester.Runtime();
 
@@ -505,7 +504,7 @@ TEST(MemoryPlanner, Add2WithRHSConstantInPlace) {
         input_id, filter_id, bias_id, conv_out)
     .AddAddition(conv_out, add_constant_input_id, add_out_id)
     .AddLeakyRelu(1.0f, add_out_id, output_id);
-  tester.CreateRuntime(xnn_test_runtime_flags());
+  tester.CreateRuntime();
   tester.SetupRuntime();
   xnn_runtime_t runtime = tester.Runtime();
 
@@ -546,7 +545,7 @@ TEST(MemoryPlanner, Mul2WithLHSConstant) {
         input_id, filter_id, bias_id, conv_out)
     .AddMultiply(mul_constant_input_id, conv_out, mul_out_id)
     .AddLeakyRelu(1.0f, mul_out_id, output_id);
-  tester.CreateRuntime(xnn_test_runtime_flags());
+  tester.CreateRuntime();
   tester.SetupRuntime();
   xnn_runtime_t runtime = tester.Runtime();
 
@@ -587,7 +586,7 @@ TEST(MemoryPlanner, Mul2WithRHSConstant) {
         input_id, filter_id, bias_id, conv_out)
     .AddMultiply(conv_out, mul_constant_input_id, mul_out_id)
     .AddLeakyRelu(1.0f, mul_out_id, output_id);
-  tester.CreateRuntime(xnn_test_runtime_flags());
+  tester.CreateRuntime();
   tester.SetupRuntime();
   xnn_runtime_t runtime = tester.Runtime();
 
@@ -640,7 +639,7 @@ TEST(MemoryPlanner, Add2WithImplicitBroadcast) {
         input2_id, filter_id, bias_id, conv_out)
     .AddAddition(hard_swish_out, conv_out, add_out)
     .AddLeakyRelu(1.0f, add_out, output_id);
-  tester.CreateRuntime(xnn_test_runtime_flags());
+  tester.CreateRuntime();
   tester.SetupRuntime();
   xnn_runtime_t runtime = tester.Runtime();
 
@@ -708,7 +707,7 @@ TEST(MemoryPlanner, Add2WithInputMultipleConsumers) {
         /*output_id=*/max_pooling_2d_out)
     .AddAddition(conv_out, max_pooling_2d_out, add_out)
     .AddLeakyRelu(1.0f, add_out, output_id);
-  tester.CreateRuntime(xnn_test_runtime_flags());
+  tester.CreateRuntime();
   tester.SetupRuntime();
   xnn_runtime_t runtime = tester.Runtime();
 
@@ -750,34 +749,18 @@ TEST(MemoryPlanner, FullyConnectedDynamicFilterDynamicBias) {
       .AddConstantPad({1}, {0}, 0.0f, input3_id, bias_id)
       .AddFullyConnected(input1_id, filter_id, bias_id, output_id);
 
-  tester.CreateRuntime(xnn_test_runtime_flags());
+  tester.CreateRuntime();
   tester.SetupRuntime();
   xnn_runtime_t runtime = tester.Runtime();
-  xnn_operator_data* fc_opdata = nullptr;
-  size_t packed_fc_input_bytes = 0;
-  switch (runtime->opdata[2].type) {
-    case xnn_node_type_fully_connected:
-      fc_opdata = &runtime->opdata[2];
-      break;
-    case xnn_node_type_pack_lh:
-      fc_opdata = &runtime->opdata[3];
-      ASSERT_EQ(fc_opdata->type, xnn_node_type_fully_connected);
-      packed_fc_input_bytes =
-          xnn_tensor_get_rounded_size(&runtime->values[fc_opdata->inputs[0]]);
-      break;
-    default:
-      GTEST_FAIL() << "Expected either a fully-connected or pack-lh node.";
-  }
+  xnn_operator_data* fc_opdata = &runtime->opdata[2];
 
-  ASSERT_EQ(
-      runtime->workspace->size,
-      xnn_tensor_get_rounded_size(&runtime->values[filter_id])  // for filter_id
-          + xnn_get_rounded_size(
-                fc_opdata->workspace_size)  // for weights packing
-          +
-          xnn_tensor_get_rounded_size(&runtime->values[bias_id])  // for bias_id
-          + packed_fc_input_bytes  // for packed lhs.
-          + MEMORY_ARENA_EXTRA_BYTES);
+  ASSERT_EQ(fc_opdata->type, xnn_node_type_fully_connected);
+
+  ASSERT_EQ(runtime->workspace->size,
+            xnn_tensor_get_rounded_size(&runtime->values[filter_id])  // for filter_id
+            + xnn_get_rounded_size(fc_opdata->workspace_size)  // for weights packing
+            + xnn_tensor_get_rounded_size(&runtime->values[bias_id])  // for bias_id
+            + MEMORY_ARENA_EXTRA_BYTES);
 }
 
 TEST(MemoryPlanner, FullyConnectedDynamicFilterStaticBias) {
@@ -804,32 +787,17 @@ TEST(MemoryPlanner, FullyConnectedDynamicFilterStaticBias) {
       .AddConstantPad({0, 0, 0, 1}, {0, 0, 0, 0}, 0.0f, input2_id, filter_id)
       .AddFullyConnected(input1_id, filter_id, bias_id, output_id);
 
-  tester.CreateRuntime(xnn_test_runtime_flags());
+  tester.CreateRuntime();
   tester.SetupRuntime();
   xnn_runtime_t runtime = tester.Runtime();
-  xnn_operator_data* fc_opdata = nullptr;
-  size_t packed_fc_input_bytes = 0;
-  switch (runtime->opdata[1].type) {
-    case xnn_node_type_fully_connected:
-      fc_opdata = &runtime->opdata[1];
-      break;
-    case xnn_node_type_pack_lh:
-      fc_opdata = &runtime->opdata[2];
-      ASSERT_EQ(fc_opdata->type, xnn_node_type_fully_connected);
-      packed_fc_input_bytes =
-          xnn_tensor_get_rounded_size(&runtime->values[fc_opdata->inputs[0]]);
-      break;
-    default:
-      GTEST_FAIL() << "Expected either a fully-connected or pack-lh node.";
-  }
+  xnn_operator_data* fc_opdata = &runtime->opdata[1];
 
-  ASSERT_EQ(
-      runtime->workspace->size,
-      xnn_tensor_get_rounded_size(&runtime->values[filter_id])  // for filter_id
-          + xnn_get_rounded_size(
-                fc_opdata->workspace_size)  // for weights packing
-          + packed_fc_input_bytes           // for packed lhs.
-          + MEMORY_ARENA_EXTRA_BYTES);
+  ASSERT_EQ(fc_opdata->type, xnn_node_type_fully_connected);
+
+  ASSERT_EQ(runtime->workspace->size,
+            xnn_tensor_get_rounded_size(&runtime->values[filter_id])  // for filter_id
+            + xnn_get_rounded_size(fc_opdata->workspace_size)  // for weights packing
+            + MEMORY_ARENA_EXTRA_BYTES);
 }
 
 TEST(MemoryPlanner, FullyConnectedDynamicFilterNoBias) {
@@ -855,32 +823,17 @@ TEST(MemoryPlanner, FullyConnectedDynamicFilterNoBias) {
       .AddConstantPad({0, 0, 0, 1}, {0, 0, 0, 0}, 0.0f, input2_id, filter_id)
       .AddFullyConnected(input1_id, filter_id, bias_id, output_id);
 
-  tester.CreateRuntime(xnn_test_runtime_flags());
+  tester.CreateRuntime();
   tester.SetupRuntime();
   xnn_runtime_t runtime = tester.Runtime();
-  xnn_operator_data* fc_opdata = nullptr;
-  size_t packed_fc_input_bytes = 0;
-  switch (runtime->opdata[1].type) {
-    case xnn_node_type_fully_connected:
-      fc_opdata = &runtime->opdata[1];
-      break;
-    case xnn_node_type_pack_lh:
-      fc_opdata = &runtime->opdata[2];
-      ASSERT_EQ(fc_opdata->type, xnn_node_type_fully_connected);
-      packed_fc_input_bytes =
-          xnn_tensor_get_rounded_size(&runtime->values[fc_opdata->inputs[0]]);
-      break;
-    default:
-      GTEST_FAIL() << "Expected either a fully-connected or pack-lh node.";
-  }
+  xnn_operator_data* fc_opdata = &runtime->opdata[1];
 
-  ASSERT_EQ(
-      runtime->workspace->size,
-      xnn_tensor_get_rounded_size(&runtime->values[filter_id])  // for filter_id
-          + xnn_get_rounded_size(
-                fc_opdata->workspace_size)  // for weights packing
-          + packed_fc_input_bytes           // for packed lhs.
-          + MEMORY_ARENA_EXTRA_BYTES);
+  ASSERT_EQ(fc_opdata->type, xnn_node_type_fully_connected);
+
+  ASSERT_EQ(runtime->workspace->size,
+            xnn_tensor_get_rounded_size(&runtime->values[filter_id])  // for filter_id
+            + xnn_get_rounded_size(fc_opdata->workspace_size)  // for weights packing
+            + MEMORY_ARENA_EXTRA_BYTES);
 }
 
 TEST(MemoryPlanner, FullyConnectedStaticFilterDynamicBias) {
@@ -907,32 +860,17 @@ TEST(MemoryPlanner, FullyConnectedStaticFilterDynamicBias) {
       .AddConstantPad({1}, {0}, 0.0f, input3_id, bias_id)
       .AddFullyConnected(input1_id, filter_id, bias_id, output_id);
 
-  tester.CreateRuntime(xnn_test_runtime_flags());
+  tester.CreateRuntime();
   tester.SetupRuntime();
   xnn_runtime_t runtime = tester.Runtime();
-  xnn_operator_data* fc_opdata = nullptr;
-  size_t packed_fc_input_bytes = 0;
-  switch (runtime->opdata[1].type) {
-    case xnn_node_type_fully_connected:
-      fc_opdata = &runtime->opdata[1];
-      break;
-    case xnn_node_type_pack_lh:
-      fc_opdata = &runtime->opdata[2];
-      ASSERT_EQ(fc_opdata->type, xnn_node_type_fully_connected);
-      packed_fc_input_bytes =
-          xnn_tensor_get_rounded_size(&runtime->values[fc_opdata->inputs[0]]);
-      break;
-    default:
-      GTEST_FAIL() << "Expected either a fully-connected or pack-lh node.";
-  }
+  xnn_operator_data* fc_opdata = &runtime->opdata[1];
 
-  ASSERT_EQ(
-      runtime->workspace->size,
-      xnn_get_rounded_size(fc_opdata->workspace_size)  // for weights packing
-          +
-          xnn_tensor_get_rounded_size(&runtime->values[bias_id])  // for bias_id
-          + packed_fc_input_bytes  // for packed lhs.
-          + MEMORY_ARENA_EXTRA_BYTES);
+  ASSERT_EQ(fc_opdata->type, xnn_node_type_fully_connected);
+
+  ASSERT_EQ(runtime->workspace->size,
+            xnn_get_rounded_size(fc_opdata->workspace_size)  // for weights packing
+            + xnn_tensor_get_rounded_size(&runtime->values[bias_id])  // for bias_id
+            + MEMORY_ARENA_EXTRA_BYTES);
 }
 
 TEST(MemoryPlanner, FullyConnectedExternalFilterExternalBias) {
@@ -953,30 +891,16 @@ TEST(MemoryPlanner, FullyConnectedExternalFilterExternalBias) {
       .AddOutputTensorF32({2, 3, 3, 2}, output_id)
       .AddFullyConnected(input_id, filter_id, bias_id, output_id);
 
-  tester.CreateRuntime(xnn_test_runtime_flags());
+  tester.CreateRuntime();
   tester.SetupRuntime();
   xnn_runtime_t runtime = tester.Runtime();
-  xnn_operator_data* fc_opdata = nullptr;
-  size_t packed_fc_input_bytes = 0;
-  switch (runtime->opdata[0].type) {
-    case xnn_node_type_fully_connected:
-      fc_opdata = &runtime->opdata[0];
-      break;
-    case xnn_node_type_pack_lh:
-      fc_opdata = &runtime->opdata[1];
-      ASSERT_EQ(fc_opdata->type, xnn_node_type_fully_connected);
-      packed_fc_input_bytes =
-          xnn_tensor_get_rounded_size(&runtime->values[fc_opdata->inputs[0]]);
-      break;
-    default:
-      GTEST_FAIL() << "Expected either a fully-connected or pack-lh node.";
-  }
+  xnn_operator_data* fc_opdata = &runtime->opdata[0];
 
-  ASSERT_EQ(
-      runtime->workspace->size,
-      +xnn_get_rounded_size(fc_opdata->workspace_size)  // for weights packing
-          + packed_fc_input_bytes                       // for packed lhs.
-          + MEMORY_ARENA_EXTRA_BYTES);
+  ASSERT_EQ(fc_opdata->type, xnn_node_type_fully_connected);
+
+  ASSERT_EQ(runtime->workspace->size,
+            + xnn_get_rounded_size(fc_opdata->workspace_size)  // for weights packing
+            + MEMORY_ARENA_EXTRA_BYTES);
 }
 
 } // namespace xnnpack

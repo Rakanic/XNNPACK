@@ -93,7 +93,6 @@ _ARCH_LIST = frozenset({
     'wasm32',
     'wasmsimd32',
     'wasmrelaxedsimd32',
-    'amd64',
 })
 
 _MICROKERNEL_NAME_REGEX = re.compile(
@@ -206,8 +205,6 @@ def main(args):
 
       # Build microkernel name -> microkernel filepath mapping
       with open(os.path.join(root_dir, filepath), 'r', encoding='utf-8') as f:
-        if filepath.endswith('.swp'): continue
-        if filepath.endswith('.orig'): continue
         content = f.read()
         microkernels = re.findall(_MICROKERNEL_NAME_REGEX, content)
         if not microkernels:
@@ -276,7 +273,7 @@ def main(args):
         for component in basename.split('-'):
           if component in _ARCH_LIST:
             arch = component
-          if component in _ISA_LIST:
+          elif component in _ISA_LIST:
             isa = _ISA_MAP.get(component, component)
             key = isa if arch is None else f'{isa}_{arch}'
             c_microkernels_per_isa[key].append(filepath)

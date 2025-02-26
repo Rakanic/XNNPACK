@@ -11,14 +11,12 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
-#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
 #include "xnnpack.h"
 #include "xnnpack/subgraph.h"
 #include "subgraph-tester.h"
-#include "runtime-flags.h"
 
 namespace xnnpack {
 
@@ -29,7 +27,7 @@ class RuntimeTester : public SubgraphTester {
   template<typename T>
   xnnpack::Buffer<T> RunWithFusion() {
     Run();
-    xnnpack::Buffer<char>& tensor = this->buffers_.at(this->output_id_);
+    xnnpack::Buffer<char>& tensor = this->external_tensors_.at(this->output_id_);
     xnnpack::Buffer<float> output = xnnpack::Buffer<float>(tensor.size() / sizeof(float));
     std::memcpy(output.data(), tensor.data(), tensor.size());
     return output;
@@ -37,8 +35,8 @@ class RuntimeTester : public SubgraphTester {
 
   template<typename T>
   xnnpack::Buffer<T> RunWithoutFusion() {
-    Run(XNN_FLAG_NO_OPERATOR_FUSION | xnn_test_runtime_flags());
-    xnnpack::Buffer<char>& tensor = this->buffers_.at(this->output_id_);
+    Run(XNN_FLAG_NO_OPERATOR_FUSION);
+    xnnpack::Buffer<char>& tensor = this->external_tensors_.at(this->output_id_);
     xnnpack::Buffer<float> output = xnnpack::Buffer<float>(tensor.size() / sizeof(float));
     memcpy(output.data(), tensor.data(), tensor.size());
     return output;
@@ -46,14 +44,14 @@ class RuntimeTester : public SubgraphTester {
 
   template<typename T>
   xnnpack::Buffer<T> RepeatRun() {
-    xnnpack::Buffer<char>& tensor = this->buffers_.at(this->output_id_);
+    xnnpack::Buffer<char>& tensor = this->external_tensors_.at(this->output_id_);
     xnn_invoke_runtime(Runtime());
     xnnpack::Buffer<float> output = xnnpack::Buffer<float>(tensor.size() / sizeof(float));
     memcpy(output.data(), tensor.data(), tensor.size());
     return output;
   }
 
-  void CreateRuntime(uint32_t flags) {
+  void CreateRuntime(uint32_t flags = 0) {
     xnn_runtime_t runtime = nullptr;
     ASSERT_EQ(xnn_status_success, xnn_create_runtime_v3(this->subgraph_.get(), nullptr, nullptr, flags, &runtime));
     ASSERT_NE(nullptr, runtime);
@@ -61,33 +59,31 @@ class RuntimeTester : public SubgraphTester {
   }
 
   void SetupRuntime() {
-    auto& output = buffers_[output_id_];
-    // Scramble output tensor.
-    std::fill(output.begin(), output.end(), 0xA8);
-
     std::vector<xnn_external_value> externals;
-    externals.reserve(this->external_tensors_.size());
     for (auto it = this->external_tensors_.begin(); it != this->external_tensors_.end(); ++it) {
-      externals.push_back(xnn_external_value{it->first, it->second});
+      if (it->first == this->output_id_) {
+        // Scramble output tensor.
+        std::fill(it->second.begin(), it->second.end(), 0xA8);
+      }
+      externals.push_back(xnn_external_value{it->first, it->second.data()});
     }
 
     ASSERT_EQ(xnn_status_success, xnn_setup_runtime(Runtime(), externals.size(), externals.data()));
-    externals_ = std::move(externals);
+    externals_ = externals;
   }
 
   void SetupRuntimeV2() {
-    auto& output = buffers_[output_id_];
-    // Scramble output tensor.
-    std::fill(output.begin(), output.end(), 0xA8);
-
     std::vector<xnn_external_value> externals;
-    externals.reserve(this->external_tensors_.size());
     for (auto it = this->external_tensors_.begin(); it != this->external_tensors_.end(); ++it) {
-      externals.push_back(xnn_external_value{it->first, it->second});
+      if (it->first == this->output_id_) {
+        // Scramble output tensor.
+        std::fill(it->second.begin(), it->second.end(), 0xA8);
+      }
+      externals.push_back(xnn_external_value{it->first, it->second.data()});
     }
 
     ASSERT_EQ(xnn_status_success, xnn_setup_runtime_v2(Runtime(), externals.size(), externals.data()));
-    externals_ = std::move(externals);
+    externals_ = externals;
   }
 
   size_t NumOperators() {
@@ -105,12 +101,12 @@ class RuntimeTester : public SubgraphTester {
   }
 
   void ReshapeInput(const std::vector<size_t>& dims, uint32_t external_id) {
+    xnn_status status = xnn_reshape_external_value(Runtime(), external_id, dims.size(), dims.data());
+    EXPECT_EQ(status, xnn_status_success);
     size_t num_elements = NumElements(dims);
     xnnpack::Buffer<char> input(num_elements * sizeof(float) + XNN_EXTRA_BYTES * sizeof(char));
-    float* data = reinterpret_cast<float*>(input.data());
-    std::generate(data, data + num_elements, [&]() { return f32dist(rng_); });
-    ReshapeExternalTensor(dims, input.data(), external_id);
-    buffers_[external_id] = std::move(input);
+    std::generate(input.begin(), input.end(), [&]() { return f32dist(rng_); });
+    external_tensors_[external_id] = std::move(input);
   }
 
   void ReshapeRuntime() {
@@ -121,12 +117,11 @@ class RuntimeTester : public SubgraphTester {
     status = xnn_get_external_value_shape(Runtime(), output_id_, &num_dims, output_dims.data());
     output_dims.resize(num_dims);
     EXPECT_EQ(status, xnn_status_success);
-    buffers_[output_id_] = xnnpack::Buffer<char>(NumElements(output_dims) * sizeof(float));
-    external_tensors_[output_id_] = buffers_[output_id_].data();
+    external_tensors_[output_id_] = xnnpack::Buffer<char>(NumElements(output_dims) * sizeof(float));
   }
 
  private:
-  void Run(uint32_t flags = xnn_test_runtime_flags()) {
+  void Run(uint32_t flags = 0) {
     CreateRuntime(flags);
     SetupRuntime();
 
@@ -134,6 +129,7 @@ class RuntimeTester : public SubgraphTester {
     ASSERT_EQ(xnn_status_success, xnn_invoke_runtime(Runtime()));
   };
 
+  std::unique_ptr<xnn_runtime, decltype(&xnn_delete_runtime)> runtime_{nullptr, xnn_delete_runtime};
   std::vector<xnn_external_value> externals_;
 };
 

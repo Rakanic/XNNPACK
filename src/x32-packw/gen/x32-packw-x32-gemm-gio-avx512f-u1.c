@@ -65,6 +65,7 @@ void xnn_x32_packw_gemm_gio_ukernel_x32__avx512f_u1(
       }
       packed_w += 32;
 
+      // KC main loop 1x32
       size_t k = kc;
 
       // KC remainder loop

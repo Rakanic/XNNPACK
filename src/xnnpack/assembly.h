@@ -64,9 +64,3 @@
   .macro END_FUNCTION name
   .endm
 #endif
-
-#ifdef __has_feature
-#define XNN_HAS_FEATURE(feature) __has_feature(feature)
-#else
-#define XNN_HAS_FEATURE(feature) 0
-#endif

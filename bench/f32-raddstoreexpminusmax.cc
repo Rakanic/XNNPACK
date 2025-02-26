@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
-#include <limits>
 #include <random>
 #include <vector>
 
@@ -51,7 +50,7 @@ static void f32_raddstoreexpminusmax(
   size_t buffer_index = 0;
   for (auto _ : state) {
     state.PauseTiming();
-    float x_max = -std::numeric_limits<float>::infinity();
+    float x_max;
     rmax(elements * sizeof(float), x.data(), &x_max, /*params=*/nullptr);
     if (++buffer_index == num_buffers) {
       buffer_index = 0;
@@ -495,5 +494,5 @@ BENCHMARK_CAPTURE(f32_raddstoreexpminusmax, scalar_rr2_p5_u4_acc4,
   ->UseRealTime();
 
 #ifndef XNNPACK_BENCHMARK_NO_MAIN
-XNN_BENCHMARK_MAIN();
+BENCHMARK_MAIN();
 #endif

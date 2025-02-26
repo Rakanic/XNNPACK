@@ -36,14 +36,15 @@ static enum xnn_status create_transpose_operator(
   assert(input_id != XNN_INVALID_VALUE_ID);
   assert(input_id < num_values);
   const struct xnn_value *input_value = &values[input_id];
-  switch (xnn_datatype_size_bits(input_value->datatype)) {
-    case 32:
+  switch (input_value->datatype) {
+    case xnn_datatype_fp32:
       status = xnn_create_transpose_nd_x32(node->flags, &opdata->operator_objects[0]);
       break;
-    case 16:
+    case xnn_datatype_fp16:
       status = xnn_create_transpose_nd_x16(node->flags, &opdata->operator_objects[0]);
       break;
-    case 8:
+    case xnn_datatype_qint8:
+    case xnn_datatype_quint8:
       status = xnn_create_transpose_nd_x8(node->flags, &opdata->operator_objects[0]);
       break;
     default:

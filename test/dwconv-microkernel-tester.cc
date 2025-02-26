@@ -194,13 +194,13 @@ void DWConvMicrokernelTester::Test(
     // Verify results.
     for (size_t x = 0; x < width(); x++) {
       for (size_t c = 0; c < channels(); c++) {
-        ASSERT_GE(static_cast<uint32_t>(output[x * output_stride() + c]),
+        EXPECT_GE(static_cast<uint32_t>(output[x * output_stride() + c]),
                   static_cast<uint32_t>(qmin()))
             << "x = " << x << ", channel = " << c;
-        ASSERT_LE(static_cast<uint32_t>(output[x * output_stride() + c]),
+        EXPECT_LE(static_cast<uint32_t>(output[x * output_stride() + c]),
                   static_cast<uint32_t>(qmax()))
             << "x = " << x << ", channel = " << c;
-        ASSERT_EQ(static_cast<uint32_t>(output[x * output_stride() + c]),
+        EXPECT_EQ(static_cast<uint32_t>(output[x * output_stride() + c]),
                   static_cast<uint32_t>(output_ref[x * channels() + c]))
             << "x = " << x << ", channel = " << c
             << ", accumulator = " << accumulators[x * channels() + c];
@@ -341,13 +341,13 @@ void DWConvMicrokernelTester::Test(
     // Verify results.
     for (size_t x = 0; x < width(); x++) {
       for (size_t c = 0; c < channels(); c++) {
-        ASSERT_GE(static_cast<uint32_t>(output[x * output_stride() + c]),
+        EXPECT_GE(static_cast<uint32_t>(output[x * output_stride() + c]),
                   static_cast<uint32_t>(qmin()))
             << "x = " << x << ", channel = " << c;
-        ASSERT_LE(static_cast<uint32_t>(output[x * output_stride() + c]),
+        EXPECT_LE(static_cast<uint32_t>(output[x * output_stride() + c]),
                   static_cast<uint32_t>(qmax()))
             << "x = " << x << ", channel = " << c;
-        ASSERT_EQ(static_cast<uint32_t>(output[x * output_stride() + c]),
+        EXPECT_EQ(static_cast<uint32_t>(output[x * output_stride() + c]),
                   static_cast<uint32_t>(output_ref[x * channels() + c]))
             << "x = " << x << ", channel = " << c
             << ", accumulator = " << accumulators[x * channels() + c];
@@ -487,13 +487,13 @@ void DWConvMicrokernelTester::Test(
     // Verify results.
     for (size_t x = 0; x < width(); x++) {
       for (size_t c = 0; c < channels(); c++) {
-        ASSERT_GE(static_cast<int32_t>(output[x * output_stride() + c]),
+        EXPECT_GE(static_cast<int32_t>(output[x * output_stride() + c]),
                   static_cast<int32_t>(qmin()) - 0x80)
             << "x = " << x << ", channel = " << c;
-        ASSERT_LE(static_cast<int32_t>(output[x * output_stride() + c]),
+        EXPECT_LE(static_cast<int32_t>(output[x * output_stride() + c]),
                   static_cast<int32_t>(qmax()) - 0x80)
             << "x = " << x << ", channel = " << c;
-        ASSERT_EQ(static_cast<int32_t>(output[x * output_stride() + c]),
+        EXPECT_EQ(static_cast<int32_t>(output[x * output_stride() + c]),
                   static_cast<int32_t>(output_ref[x * channels() + c]))
             << "x = " << x << ", channel = " << c
             << ", accumulator = " << accumulators[x * channels() + c];
@@ -657,13 +657,13 @@ void DWConvMicrokernelTester::Test(
     // Verify results.
     for (size_t x = 0; x < width(); x++) {
       for (size_t c = 0; c < channels(); c++) {
-        ASSERT_GE(static_cast<int32_t>(output[x * output_stride() + c]),
+        EXPECT_GE(static_cast<int32_t>(output[x * output_stride() + c]),
                   static_cast<int32_t>(qmin()) - 0x80)
             << "x = " << x << ", channel = " << c;
-        ASSERT_LE(static_cast<int32_t>(output[x * output_stride() + c]),
+        EXPECT_LE(static_cast<int32_t>(output[x * output_stride() + c]),
                   static_cast<int32_t>(qmax()) - 0x80)
             << "x = " << x << ", channel = " << c;
-        ASSERT_EQ(static_cast<int32_t>(output[x * output_stride() + c]),
+        EXPECT_EQ(static_cast<int32_t>(output[x * output_stride() + c]),
                   static_cast<int32_t>(output_ref[x * channels() + c]))
             << "x = " << x << ", channel = " << c
             << ", accumulator = " << accumulators[x * channels() + c]
@@ -793,13 +793,13 @@ void DWConvMicrokernelTester::Test(
     // Verify results.
     for (size_t x = 0; x < width(); x++) {
       for (size_t c = 0; c < channels(); c++) {
-        ASSERT_GE(static_cast<int32_t>(output[x * output_stride() + c]),
+        EXPECT_GE(static_cast<int32_t>(output[x * output_stride() + c]),
                   static_cast<int32_t>(qmin()) - 0x80)
             << "x = " << x << ", channel = " << c;
-        ASSERT_LE(static_cast<int32_t>(output[x * output_stride() + c]),
+        EXPECT_LE(static_cast<int32_t>(output[x * output_stride() + c]),
                   static_cast<int32_t>(qmax()) - 0x80)
             << "x = " << x << ", channel = " << c;
-        ASSERT_EQ(static_cast<int32_t>(output[x * output_stride() + c]),
+        EXPECT_EQ(static_cast<int32_t>(output[x * output_stride() + c]),
                   static_cast<int32_t>(output_ref[x * channels() + c]))
             << "x = " << x << ", channel = " << c
             << ", accumulator = " << accumulators[x * channels() + c];
@@ -943,13 +943,13 @@ void DWConvMicrokernelTester::Test(
     // Verify results.
     for (size_t x = 0; x < width(); x++) {
       for (size_t c = 0; c < channels(); c++) {
-        ASSERT_GE(static_cast<int32_t>(output[x * output_stride() + c]),
+        EXPECT_GE(static_cast<int32_t>(output[x * output_stride() + c]),
                   static_cast<int32_t>(qmin()) - 0x80)
             << "x = " << x << ", channel = " << c;
-        ASSERT_LE(static_cast<int32_t>(output[x * output_stride() + c]),
+        EXPECT_LE(static_cast<int32_t>(output[x * output_stride() + c]),
                   static_cast<int32_t>(qmax()) - 0x80)
             << "x = " << x << ", channel = " << c;
-        ASSERT_EQ(static_cast<int32_t>(output[x * output_stride() + c]),
+        EXPECT_EQ(static_cast<int32_t>(output[x * output_stride() + c]),
                   static_cast<int32_t>(output_ref[x * channels() + c]))
             << "x = " << x << ", channel = " << c
             << ", accumulator = " << accumulators[x * channels() + c];
@@ -972,7 +972,7 @@ void DWConvMicrokernelTester::Test(
   xnnpack::Buffer<xnn_float16> bias(channels());
   xnnpack::Buffer<xnn_float16, XNN_ALLOCATION_ALIGNMENT> packed_weights(
       (kernel_tile() + 1) * packed_channels());
-  xnnpack::Buffer<xnn_float16> zero(channels() + XNN_EXTRA_BYTES / sizeof(xnn_float16), 0.0f);
+  xnnpack::Buffer<xnn_float16> zero(channels() + XNN_EXTRA_BYTES / sizeof(xnn_float16), 0);
   xnnpack::Buffer<xnn_float16> output((width() - 1) * output_stride() + channels());
   xnnpack::Buffer<float> output_ref(width() * channels());
 
@@ -984,7 +984,7 @@ void DWConvMicrokernelTester::Test(
     std::generate(bias.begin(), bias.end(),
                   [&]() { return f32dist(rng); });
 
-    std::fill(packed_weights.begin(), packed_weights.end(), 0.0f);
+    std::fill(packed_weights.begin(), packed_weights.end(), 0);
     xnn_pack_f16_dwconv_ghw_w(
         kernel_tile(), 0, 0, kernel_tile(), 1, channels(), channel_tile(),
         channel_tile(), channel_tile(),
@@ -1050,13 +1050,13 @@ void DWConvMicrokernelTester::Test(
     // Verify results.
     for (size_t x = 0; x < width(); x++) {
       for (size_t c = 0; c < channels(); c++) {
-        ASSERT_GE(output[x * output_stride() + c],
+        EXPECT_GE(output[x * output_stride() + c],
                   output_min)
             << "x = " << x << ", channel = " << c;
-        ASSERT_LE(output[x * output_stride() + c],
+        EXPECT_LE(output[x * output_stride() + c],
                   output_max)
             << "x = " << x << ", channel = " << c;
-        ASSERT_NEAR(output_ref[x * channels() + c],
+        EXPECT_NEAR(output_ref[x * channels() + c],
                     output[x * output_stride() + c],
                     std::max(1.0e-4f, std::abs(output_ref[x * channels() + c]) *
                                           1.0e-2f))
@@ -1101,7 +1101,7 @@ void DWConvMicrokernelTester::Test(
     std::generate(bias.begin(), bias.end(),
                   [&]() { return f32dist(rng); });
 
-    std::fill(packed_weights.begin(), packed_weights.end(), 0.0f);
+    std::fill(packed_weights.begin(), packed_weights.end(), 0);
     xnn_pack_f16_dwconv_ghw_w(
         first_pass_tile(), middle_pass_tile(), last_pass_tile(), kernel_size(),
         1, channels(), channel_tile(), channel_subtile(), channel_round(),
@@ -1175,13 +1175,13 @@ void DWConvMicrokernelTester::Test(
     // Verify results.
     for (size_t x = 0; x < width(); x++) {
       for (size_t c = 0; c < channels(); c++) {
-        ASSERT_GE(output[x * output_stride() + c],
+        EXPECT_GE(output[x * output_stride() + c],
                   output_min)
             << "x = " << x << ", channel = " << c;
-        ASSERT_LE(output[x * output_stride() + c],
+        EXPECT_LE(output[x * output_stride() + c],
                   output_max)
             << "x = " << x << ", channel = " << c;
-        ASSERT_NEAR(output_ref[x * channels() + c],
+        EXPECT_NEAR(output_ref[x * channels() + c],
                     output[x * output_stride() + c],
                     std::max(1.0e-4f, std::abs(output_ref[x * channels() + c]) *
                                           1.0e-2f))
@@ -1257,7 +1257,7 @@ void DWConvMicrokernelTester::Test(
     // Verify results.
     for (size_t x = 0; x < width(); x++) {
       for (size_t c = 0; c < channels(); c++) {
-        ASSERT_NEAR(output_ref[x * channels() + c],
+        EXPECT_NEAR(output_ref[x * channels() + c],
                     output[x * output_stride() + c],
                     std::abs(output_ref[x * channels() + c]) * 1.0e-5)
             << "x = " << x << ", channel = " << c;
@@ -1349,11 +1349,11 @@ void DWConvMicrokernelTester::Test(
     // Verify results.
     for (size_t x = 0; x < width(); x++) {
       for (size_t c = 0; c < channels(); c++) {
-        ASSERT_GE(output[x * output_stride() + c], output_min)
+        EXPECT_GE(output[x * output_stride() + c], output_min)
             << "x = " << x << ", channel = " << c;
-        ASSERT_LE(output[x * output_stride() + c], output_max)
+        EXPECT_LE(output[x * output_stride() + c], output_max)
             << "x = " << x << ", channel = " << c;
-        ASSERT_NEAR(output_ref[x * channels() + c],
+        EXPECT_NEAR(output_ref[x * channels() + c],
                     output[x * output_stride() + c],
                     std::abs(output_ref[x * channels() + c]) * 1.0e-5)
             << "x = " << x << ", channel = " << c;
@@ -1440,7 +1440,7 @@ void DWConvMicrokernelTester::Test(
     // Verify results.
     for (size_t x = 0; x < width(); x++) {
       for (size_t c = 0; c < channels(); c++) {
-        ASSERT_NEAR(output_ref[x * channels() + c],
+        EXPECT_NEAR(output_ref[x * channels() + c],
                     output[x * output_stride() + c],
                     std::abs(output_ref[x * channels() + c]) * 1.0e-5)
             << "x = " << x << ", channel = " << c
@@ -1555,11 +1555,11 @@ void DWConvMicrokernelTester::Test(
     // Verify results.
     for (size_t x = 0; x < width(); x++) {
       for (size_t c = 0; c < channels(); c++) {
-        ASSERT_GE(output[x * output_stride() + c], output_min)
+        EXPECT_GE(output[x * output_stride() + c], output_min)
             << "x = " << x << ", channel = " << c;
-        ASSERT_LE(output[x * output_stride() + c], output_max)
+        EXPECT_LE(output[x * output_stride() + c], output_max)
             << "x = " << x << ", channel = " << c;
-        ASSERT_NEAR(output_ref[x * channels() + c],
+        EXPECT_NEAR(output_ref[x * channels() + c],
                     output[x * output_stride() + c],
                     std::abs(output_ref[x * channels() + c]) * 1.0e-5)
             << "x = " << x << ", channel = " << c

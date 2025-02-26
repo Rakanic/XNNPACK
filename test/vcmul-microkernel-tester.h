@@ -105,7 +105,7 @@ class VCMulMicrokernelTester {
       // Verify results.
       for (size_t i = 0; i < batch_size(); i++) {
         const float tolerance = std::abs(y_ref[i]) * 1.0e-2f;
-        ASSERT_NEAR(y[i], y_ref[i], tolerance)
+        EXPECT_NEAR(y[i], y_ref[i], tolerance)
           << "at " << i << " / " << batch_size();
       }
     }
@@ -150,7 +150,7 @@ class VCMulMicrokernelTester {
 
       // Verify results.
       for (size_t i = 0; i < batch_size(); i++) {
-        ASSERT_NEAR(y[i], y_ref[i], std::abs(y_ref[i]) * 1.0e-4f)
+        EXPECT_NEAR(y[i], y_ref[i], std::abs(y_ref[i]) * 1.0e-4f)
           << "at " << i << " / " << batch_size();
       }
     }

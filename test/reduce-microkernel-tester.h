@@ -71,18 +71,6 @@ class ReduceMicrokernelTester {
 
       // Call optimized micro-kernel.
       xnn_float16 output[2];
-      switch (op_type) {
-        case OpType::Max:
-          output[0] = -std::numeric_limits<float>::infinity();
-          break;
-        case OpType::Min:
-          output[0] = std::numeric_limits<float>::infinity();
-          break;
-        case OpType::MinMax:
-          output[0] = std::numeric_limits<float>::infinity();
-          output[1] = -std::numeric_limits<float>::infinity();
-          break;
-      }
       reduce(batch_size() * sizeof(xnn_float16), input.data(), output, init_params != nullptr ? &params : nullptr);
 
       // Verify results.
@@ -125,18 +113,6 @@ class ReduceMicrokernelTester {
 
       // Call optimized micro-kernel.
       float output[2];
-      switch (op_type) {
-        case OpType::Max:
-          output[0] = -std::numeric_limits<float>::infinity();
-          break;
-        case OpType::Min:
-          output[0] = std::numeric_limits<float>::infinity();
-          break;
-        case OpType::MinMax:
-          output[0] = std::numeric_limits<float>::infinity();
-          output[1] = -std::numeric_limits<float>::infinity();
-          break;
-      }
       reduce(batch_size() * sizeof(float), input.data(), output, init_params != nullptr ? &params : nullptr);
 
       // Verify results.
@@ -173,19 +149,7 @@ class ReduceMicrokernelTester {
       std::tie(min, max) = std::minmax_element(input.begin(), input.begin() + batch_size());
 
       // Call optimized micro-kernel.
-      uint8_t output[2];
-      switch (op_type) {
-        case OpType::Max:
-          output[0] = std::numeric_limits<uint8_t>::min();
-          break;
-        case OpType::Min:
-          output[0] = std::numeric_limits<uint8_t>::max();
-          break;
-        case OpType::MinMax:
-          output[0] = std::numeric_limits<uint8_t>::max();
-          output[1] = std::numeric_limits<uint8_t>::min();
-          break;
-      }
+      uint8_t output[2] = {0xAA, 0xAA};
       reduce(batch_size() * sizeof(uint8_t), input.data(), output, nullptr);
 
       // Verify results.

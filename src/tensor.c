@@ -15,6 +15,8 @@
 #include "xnnpack.h"
 #include "xnnpack/allocation-type.h"
 #include "xnnpack/common.h"
+#include "xnnpack/config-types.h"
+#include "xnnpack/config.h"
 #include "xnnpack/datatype.h"
 #include "xnnpack/log.h"
 #include "xnnpack/math.h"
@@ -126,7 +128,6 @@ enum xnn_status xnn_define_tensor_value(
     case xnn_datatype_fp16:
     case xnn_datatype_bf16:
     case xnn_datatype_int32:
-    case xnn_datatype_pfp16:  // TODO: Does this really belong here?
     case xnn_datatype_pfp32:  // TODO: Does this really belong here?
       break;
     default:
@@ -613,16 +614,9 @@ size_t xnn_tensor_get_size(const struct xnn_value* value)
 
   // Special handling for packed quantized types.
   if (value->datatype == xnn_datatype_qpint8) {
-    assert(value->gemm_config != NULL);
-    size_t num_groups = xnn_shape_multiply_batch_dims(&value->shape, 2);
-    size_t m = value->shape.dim[value->shape.num_dims - 2];
+    const size_t m = xnn_shape_multiply_batch_dims(&value->shape, 1);
     const size_t k = value->shape.dim[value->shape.num_dims - 1];
-    if (value->flags & XNN_FLAG_SQUASH_GROUPS) {
-      m *= num_groups;
-      num_groups = 1;
-    }
-    return num_groups *
-           xnn_x8_packq_f32qp8_gemm_packed_size(value->gemm_config, m, k);
+    return xnn_x8_packq_f32qp8_gemm_packed_size(m, k);
   }
 
   uint64_t size_bits = xnn_datatype_size_bits(value->datatype);
@@ -639,8 +633,7 @@ size_t xnn_tensor_get_size(const struct xnn_value* value)
 size_t xnn_tensor_get_dynamic_quant_param_size(const struct xnn_value* value)
 {
   switch (value->datatype) {
-    case xnn_datatype_qdint8:
-    case xnn_datatype_qduint8: {
+    case xnn_datatype_qdint8: {
       const size_t batch_dims_size = xnn_shape_multiply_batch_dims(
           &value->shape, value->quantization.num_nonbatch_dims);
       return batch_dims_size * sizeof(struct xnn_quantization_params);

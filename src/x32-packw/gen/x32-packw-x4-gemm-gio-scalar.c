@@ -39,46 +39,36 @@ void xnn_x32_packw_gemm_gio_ukernel_x4__scalar(
   assert(weights != NULL);
   assert(packed_weights != NULL);
 
-  const uint32_t* b = bias;
-  uint32_t* packed_w = packed_weights;
+  const float* b = (const float*) bias;
+  float* packed_w = (float*) packed_weights;
   do {
     // NC main loop multiple of 4
-    const uint32_t* w = weights;
+    const float* w = (const float*) weights;
     size_t n = nc;
 
     for (; n >= 4; n -= 4) {
       if XNN_LIKELY(b != NULL) {
-        const uint32_t v0 = b[0];
-        const uint32_t v1 = b[1];
-        const uint32_t v2 = b[2];
-        const uint32_t v3 = b[3];
-        packed_w[0] = v0;
-        packed_w[1] = v1;
-        packed_w[2] = v2;
-        packed_w[3] = v3;
+        const uint64_t v0 = ((const uint64_t*)b)[0];
+        const uint64_t v1 = ((const uint64_t*)b)[1];
+        ((uint64_t*)packed_w)[0] = v0;
+        ((uint64_t*)packed_w)[1] = v1;
         b += 4;
       } else {
-        packed_w[0] = 0;
-        packed_w[1] = 0;
-        packed_w[2] = 0;
-        packed_w[3] = 0;
+        ((uint64_t*)packed_w)[0] = 0;
+        ((uint64_t*)packed_w)[1] = 0;
       }
       packed_w += 4;
 
       // KC main loop
       for (size_t k = kc; k > 0; --k) {
-        const uint32_t v0 = w[0];
-        const uint32_t v1 = w[1];
-        const uint32_t v2 = w[2];
-        const uint32_t v3 = w[3];
-        packed_w[0] = v0;
-        packed_w[1] = v1;
-        packed_w[2] = v2;
-        packed_w[3] = v3;
+        const uint64_t v0 = ((const uint64_t*)w)[0];
+        const uint64_t v1 = ((const uint64_t*)w)[1];
+        ((uint64_t*)packed_w)[0] = v0;
+        ((uint64_t*)packed_w)[1] = v1;
         w += k_stride;
         packed_w += 4;
       }
-      w = w - kc * k_stride + 4;  // Advance to next column of 4 uint32_t
+      w = w - kc * k_stride + 4;  // Advance to next column of 4 floats
     }
 
     // NC remainder (1..3)
@@ -92,10 +82,8 @@ void xnn_x32_packw_gemm_gio_ukernel_x4__scalar(
         }
         b += n;
       } else {
-        packed_w[0] = 0;
-        packed_w[1] = 0;
-        packed_w[2] = 0;
-        packed_w[3] = 0;
+        ((uint64_t*)packed_w)[0] = 0;
+        ((uint64_t*)packed_w)[1] = 0;
       }
       packed_w += 4;
 

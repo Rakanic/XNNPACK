@@ -25,7 +25,6 @@
 #include <gtest/gtest.h>
 #include "xnnpack.h"
 #include "xnnpack/buffer.h"
-#include "xnnpack/common.h"
 #include "xnnpack/datatype.h"
 #include "xnnpack/log.h"
 #include "xnnpack/math.h"
@@ -46,7 +45,7 @@ enum class RunMode {
 double ComputeTolerance(xnn_datatype datatype, double output_ref) {
   switch (datatype) {
     case xnn_datatype_fp16:
-      return 1.0e-3 * std::abs(output_ref) + 1.0e-3;
+      return std::abs(output_ref);
     case xnn_datatype_fp32:
       return 1.0e-6 * std::abs(output_ref);
     default:
@@ -312,6 +311,7 @@ class BinaryElementwiseOperatorTester {
     MinMaxLow limits = DatatypeMinMaxLow(datatype());
 
     xnnpack::ReplicableRandomDevice rng;
+    std::uniform_real_distribution<double> dist(limits.min, limits.max);
 
     // Compute generalized shapes.
     std::array<size_t, XNN_MAX_TENSOR_DIMS> input1_dims;
@@ -357,8 +357,8 @@ class BinaryElementwiseOperatorTester {
     xnnpack::Buffer<T> input2(XNN_EXTRA_BYTES + num_input2_elements());
     xnnpack::Buffer<T> output(num_output_elements);
     for (size_t iteration = 0; iteration < iterations(); iteration++) {
-      xnnpack::randomize_buffer(datatype(), rng, limits.min, limits.max, input1);
-      xnnpack::randomize_buffer(datatype(), rng, limits.min, limits.max, input2);
+      randomize_buffer(datatype(), rng, dist, input1);
+      randomize_buffer(datatype(), rng, dist, input2);
 
       if (mode == RunMode::kCreateReshapeRun) {
         // Create, setup, run, and destroy a binary elementwise operator.
@@ -486,8 +486,8 @@ class BinaryElementwiseOperatorTester {
   }
 
   // ValidateResults for integral (but non-quantized) types.
-  template <typename T, typename std::enable_if<
-                            std::is_integral<T>::value>::type* = nullptr>
+  template <typename T,
+            typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
   void ValidateResults(
       const xnnpack::Buffer<T>& input1,
       const std::array<size_t, XNN_MAX_TENSOR_DIMS>& input1_strides,
@@ -497,7 +497,7 @@ class BinaryElementwiseOperatorTester {
       const std::array<size_t, XNN_MAX_TENSOR_DIMS>& output_strides,
       const std::array<size_t, XNN_MAX_TENSOR_DIMS>& output_dims) {
     // Verify results.
-    static_assert(!xnnpack::is_quantized<T>::value, "");
+    static_assert(!xnnpack::is_quantized<T>::value);
     MinMaxLow limits = DatatypeMinMaxLow(datatype());
     for (size_t i = 0; i < output_dims[0]; i++) {
       for (size_t j = 0; j < output_dims[1]; j++) {
@@ -509,13 +509,13 @@ class BinaryElementwiseOperatorTester {
                     i * input1_strides[0] + j * input1_strides[1] +
                     k * input1_strides[2] + l * input1_strides[3] +
                     m * input1_strides[4] + n * input1_strides[5];
-                const int32_t input1_value =
+                const int input1_value =
                     reinterpret_cast<const T*>(&input1[0])[input1_index];
                 const size_t input2_index =
                     i * input2_strides[0] + j * input2_strides[1] +
                     k * input2_strides[2] + l * input2_strides[3] +
                     m * input2_strides[4] + n * input2_strides[5];
-                const int32_t input2_value =
+                const int input2_value =
                     reinterpret_cast<const T*>(&input2[0])[input2_index];
                 int output_ref = Compute(input1_value, input2_value);
                 if (std::isnan(output_ref) || output_ref < limits.low ||
@@ -546,8 +546,8 @@ class BinaryElementwiseOperatorTester {
   }
 
   // ValidateResults for all other types (float variants).
-  template <typename T, typename std::enable_if<
-                            !std::is_integral<T>::value>::type* = nullptr>
+  template <typename T,
+            typename std::enable_if<!std::is_integral<T>::value>::type* = nullptr>
   void ValidateResults(
       const xnnpack::Buffer<T>& input1,
       const std::array<size_t, XNN_MAX_TENSOR_DIMS>& input1_strides,
@@ -557,7 +557,7 @@ class BinaryElementwiseOperatorTester {
       const std::array<size_t, XNN_MAX_TENSOR_DIMS>& output_strides,
       const std::array<size_t, XNN_MAX_TENSOR_DIMS>& output_dims) {
     // Verify results.
-    static_assert(!xnnpack::is_quantized<T>::value, "");
+    static_assert(!xnnpack::is_quantized<T>::value);
     MinMaxLow limits = DatatypeMinMaxLow(datatype());
     for (size_t i = 0; i < output_dims[0]; i++) {
       for (size_t j = 0; j < output_dims[1]; j++) {

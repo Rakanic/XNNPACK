@@ -26,6 +26,7 @@ struct BatchMatMulTesterParams {
   size_t k = 23;
   size_t n = 19;
   bool transpose_b = false;
+  size_t iterations = 3;
   enum xnn_status expected_status_reshape = xnn_status_success;
 };
 
@@ -47,6 +48,7 @@ std::ostream& operator<<(std::ostream& os,
   PrintVector(os, params.batch_dims_b);
   os << "], m=" << params.m << ", k=" << params.k << ", n=" << params.n
      << ", transpose_b=" << params.transpose_b
+     << ", iterations=" << params.iterations
      << ", expected_status_reshape=" << params.expected_status_reshape << "}";
   return os;
 }
@@ -164,6 +166,7 @@ TEST_P(BatchMatMulTest, TestF32) {
       .k(params.k)
       .n(params.n)
       .transpose_b(params.transpose_b)
+      .iterations(params.iterations)
       .expected_status_reshape(params.expected_status_reshape)
       .TestF32();
 }
@@ -177,6 +180,7 @@ TEST_P(BatchMatMulTest, TestF16) {
       .k(params.k)
       .n(params.n)
       .transpose_b(params.transpose_b)
+      .iterations(params.iterations)
       .expected_status_reshape(params.expected_status_reshape)
       .TestF16();
 }
@@ -190,21 +194,9 @@ TEST_P(BatchMatMulTest, TestQD8F32QC8W) {
       .k(params.k)
       .n(params.n)
       .transpose_b(params.transpose_b)
+      .iterations(params.iterations)
       .expected_status_reshape(params.expected_status_reshape)
       .TestQD8F32QC8W();
-}
-
-TEST_P(BatchMatMulTest, TestQP8F32QC8W) {
-  const BatchMatMulTesterParams& params = GetParam();
-  BatchMatMulOperatorTester()
-      .batch_dims_a(params.batch_dims_a)
-      .batch_dims_b(params.batch_dims_b)
-      .m(params.m)
-      .k(params.k)
-      .n(params.n)
-      .transpose_b(params.transpose_b)
-      .expected_status_reshape(params.expected_status_reshape)
-      .TestQP8F32QC8W();
 }
 
 // Create tests for different batch sizes with different amounts of
@@ -230,6 +222,7 @@ TEST(BatchMatMulTest, bad_broadcast_a_4_b_6_fails) {
       .m(17)
       .k(23)
       .n(19)
+      .iterations(3)
       .expected_status_reshape(xnn_status_invalid_parameter)
       .TestF32();
 }
@@ -241,6 +234,7 @@ TEST(BatchMatMulTest, bad_broadcast_a_1_6_3_b_6_1_5_fails) {
       .m(17)
       .k(23)
       .n(19)
+      .iterations(3)
       .expected_status_reshape(xnn_status_invalid_parameter)
       .TestF32();
 }

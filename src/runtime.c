@@ -15,21 +15,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(__EMSCRIPTEN__)
-#include <emscripten/emscripten.h>
-#elif XNN_PLATFORM_WINDOWS
-#include <windows.h>
-#else
-#include <errno.h>
-#include <time.h>
-#endif
-
 #include "xnnpack.h"
 #include "xnnpack/allocation-type.h"
 #include "xnnpack/allocator.h"
 #include "xnnpack/cache.h"
 #include "xnnpack/common.h"
-#include "xnnpack/internal.h"
 #include "xnnpack/log.h"
 #include "xnnpack/memory-planner.h"
 #include "xnnpack/memory.h"
@@ -40,6 +30,15 @@
 #include "xnnpack/params.h"
 #include "xnnpack/subgraph.h"
 #include "pthreadpool.h"
+
+#if defined(__EMSCRIPTEN__)
+#include <emscripten/emscripten.h>
+#elif XNN_PLATFORM_WINDOWS
+#include <windows.h>
+#else
+#include <errno.h>
+#include <time.h>
+#endif
 
 enum xnn_status xnn_reshape_external_value(
     xnn_runtime_t runtime,
@@ -267,8 +266,7 @@ static enum xnn_status initialize_workspace_values(
       // Value is purely internal to the runtime, allocate it in the workspace.
       value->data =
         (void*) ((uintptr_t) runtime->workspace->data + persistent_size + mem_alloc_tracker->usage[i].alloc_offset);
-      if (value->datatype == xnn_datatype_qdint8 ||
-          value->datatype == xnn_datatype_qduint8) {
+      if (value->datatype == xnn_datatype_qdint8) {
         value->quantization.dynamic_params =
           (void*) ((uintptr_t) runtime->workspace->data + persistent_size + mem_alloc_tracker->usage[i].alloc_offset
                    + xnn_tensor_get_rounded_size(value));
@@ -312,8 +310,7 @@ static enum xnn_status initialize_workspace_values(
           if (value->data != NULL) {
             // Data can be null as the runtime using this workspace might not have been set up.
             value->data = (void*) ((uintptr_t) value->data + workspace_data_delta);
-            if (value->datatype == xnn_datatype_qdint8 ||
-                value->datatype == xnn_datatype_qduint8) {
+            if (value->datatype == xnn_datatype_qdint8) {
               value->quantization.dynamic_params = (void*) ((uintptr_t) value->quantization.dynamic_params
                                                             + workspace_data_delta);
             }
@@ -532,7 +529,7 @@ enum xnn_status xnn_create_runtime_v4(
 
   if (workspace == NULL) {
     xnn_log_debug("Allocating non-shared workspace");
-    workspace = xnn_allocate_zero_memory(sizeof(struct xnn_workspace));
+    workspace = xnn_allocate_zero_simd_memory(sizeof(struct xnn_workspace));
   }
 
   const uint32_t optimization_flags = XNN_FLAG_HINT_SPARSE_INFERENCE | XNN_FLAG_HINT_FP16_INFERENCE |
@@ -550,8 +547,6 @@ enum xnn_status xnn_create_runtime_v4(
     xnn_log_error("failed to allocate %zu bytes for runtime descriptor", sizeof(struct xnn_runtime));
     goto error;
   }
-
-  runtime->flags = flags;
 
   runtime->opdata = xnn_allocate_zero_memory(sizeof(struct xnn_operator_data) * subgraph->num_nodes);
   if (runtime->opdata == NULL) {
@@ -639,8 +634,6 @@ enum xnn_status xnn_create_runtime_v4(
     }
   }
 
-  runtime->threadpool = threadpool;
-
 #ifdef XNN_SLINKY_ENABLED
   // If compiling with XNN_SLINKY_ENABLED defined, assume we always
   // want Slinky enabled, regardless of the runtime flag
@@ -664,7 +657,7 @@ enum xnn_status xnn_create_runtime_v4(
 
     if (value->fp16_compatible && xnn_value_is_static(value)) {
       // Value is static and has been converted to FP16 in a new buffer.
-      value->flags |= XNN_VALUE_FLAG_NEEDS_CLEANUP;
+      value->allocation_type = xnn_allocation_type_dynamic;
       // Runtime takes ownership of the data from subgraph.
       value->data = subgraph->values[i].data;
       subgraph->values[i].data = NULL;
@@ -679,6 +672,8 @@ enum xnn_status xnn_create_runtime_v4(
   if (flags & XNN_FLAG_BASIC_PROFILING) {
     runtime->profiling = true;
   }
+
+  runtime->threadpool = threadpool;
 
   *runtime_out = runtime;
   return xnn_status_success;
@@ -705,7 +700,7 @@ enum xnn_status xnn_plan_memory(
     if (value->allocation_type == xnn_allocation_type_workspace) {
       // Value is purely internal to the runtime, and must be allocated in its workspace.
       size_t tensor_size = xnn_tensor_get_rounded_size(value);
-      if (value->datatype == xnn_datatype_qdint8 || value->datatype == xnn_datatype_qduint8) {
+      if (value->datatype == xnn_datatype_qdint8) {
         tensor_size += xnn_tensor_get_rounded_dynamic_quant_param_size(value);
       }
       xnn_add_value_allocation_tracker(&mem_alloc_tracker, i, tensor_size);
@@ -744,22 +739,6 @@ error:
 enum xnn_status xnn_reshape_runtime(
   xnn_runtime_t runtime)
 {
-#ifdef XNN_SLINKY_ENABLED
-  // If compiling with XNN_SLINKY_ENABLED defined, assume we always
-  // want Slinky enabled, regardless of the runtime flag
-  const bool use_slinky = true;
-#else
-  const bool use_slinky = (runtime->flags & XNN_FLAG_SLINKY_ENABLED) != 0;
-#endif
-  if (use_slinky) {
-    #ifdef XNN_SLINKY_AVAILABLE
-    if ((runtime->flags & XNN_FLAG_SLINKY_CONCRETE_BOUNDS) != 0) {
-      // slinky_init_pipeline(runtime);
-    }
-    // TODO: Reshape should not necessary when using slinky with symbolic (not concrete) bounds.
-    #endif
-  }
-
   bool reallocation_required = false;
 
   for (uint32_t opdata_id = 0; opdata_id < runtime->num_ops; opdata_id++) {
@@ -809,6 +788,10 @@ enum xnn_status xnn_setup_runtime(
     }
   }
 
+  #ifdef XNN_SLINKY_AVAILABLE
+  // slinky_setup_inputs_and_outputs(runtime);
+  #endif
+
   // Apply runtime state changes.
   for (size_t i = 0; i < num_external_values; i++) {
     const struct xnn_external_value* external_value = &external_values[i];
@@ -853,10 +836,6 @@ enum xnn_status xnn_setup_runtime(
       }
     }
   }
-
-  #ifdef XNN_SLINKY_AVAILABLE
-  // slinky_setup_inputs_and_outputs(runtime);
-  #endif
 
   runtime->has_been_setup = true;
 
@@ -1114,8 +1093,7 @@ enum xnn_status xnn_delete_runtime(
         // Release the buffers created during FP16 rewrite.
         for (size_t i = 0; i < runtime->num_values; i++) {
           struct xnn_value* value = &runtime->values[i];
-          if (value->allocation_type == xnn_allocation_type_dynamic ||
-              value->flags & XNN_VALUE_FLAG_NEEDS_CLEANUP) {
+          if (value->allocation_type == xnn_allocation_type_dynamic) {
             xnn_release_memory(value->data);
           }
         }

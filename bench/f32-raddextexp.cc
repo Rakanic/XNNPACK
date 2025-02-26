@@ -158,5 +158,5 @@ static void CharacteristicArguments(benchmark::internal::Benchmark* b) {
 #endif  // XNN_ARCH_X86 || XNN_ARCH_X86_64
 
 #ifndef XNNPACK_BENCHMARK_NO_MAIN
-XNN_BENCHMARK_MAIN();
+BENCHMARK_MAIN();
 #endif
